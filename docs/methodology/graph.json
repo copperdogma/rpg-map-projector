@@ -391,7 +391,23 @@
     }
   ],
   "adrs": [],
-  "scouts": [],
+  "scouts": [
+    {
+      "id": "001",
+      "title": "Existing Battle Map Projection Solutions",
+      "path": "docs/scout/scout-001-existing-battle-map-projection-solutions.md",
+      "status": "Filed",
+      "spec_refs": [
+        "spec:1",
+        "spec:2",
+        "spec:3",
+        "spec:4",
+        "spec:5",
+        "spec:6",
+        "spec:7"
+      ]
+    }
+  ],
   "evals": [],
   "validation": {
     "errors": [],

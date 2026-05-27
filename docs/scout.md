@@ -6,3 +6,4 @@ Use scout work when the next move depends on external evidence rather than repo-
 
 | # | Source | Date | Scope | Recommendation | Follow-Up | Status |
 |---|---|---|---|---|---|---|
+| 001 | [Existing Battle Map Projection Solutions](scout/scout-001-existing-battle-map-projection-solutions.md) | 2026-05-27 | Existing in-person map projection, fog, QR/player views, true-scale rendering, and camera/projector calibration references | Spike Mappadux before building projection/pairing from scratch; do not adopt wholesale yet | Story 001 includes the Mappadux spike; create ADR only if choosing fork/adopt/base architecture | Filed |

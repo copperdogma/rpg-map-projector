@@ -24,10 +24,13 @@ The first hardware path does not assume a dedicated USB webcam. An iPhone can ac
 
 This story intentionally does not require remote storage/auth, native iOS, AI cleanup, map libraries, or app polish.
 
+Scout 001 identified Mappadux / Dynamic Map Renderer v2 as close prior art for QR pairing, local web projection, fog, and true-table-scale rendering. Before building the projection UI from scratch, this story should run a short Mappadux spike to decide whether to fork/adapt the codebase, borrow specific projection/scaling concepts, or proceed independently.
+
 ## Scope
 
 Build the smallest experiment that can:
 
+- inspect Mappadux's projector, pairing, and scaled-view architecture against this story's camera-calibrated projection needs,
 - show a calibration pattern through the projector,
 - capture the battle mat and projected pattern through the fixed camera feed,
 - manually or semi-automatically identify the mat grid,
@@ -44,6 +47,7 @@ Build the smallest experiment that can:
 - The test records approximate alignment error in inches or fractions of a mat square.
 - The test records setup time from starting calibration to useful projection.
 - The test records camera/projector placement notes and any failure modes.
+- The test records whether Mappadux should be forked/adapted, used as implementation reference only, or rejected for this product.
 - The result is good enough to decide whether the next story should improve calibration, projection display, source-map normalization, UI controls, or hardware selection.
 
 ## Non-Goals
@@ -60,3 +64,4 @@ Build the smallest experiment that can:
 ## Work Log
 
 - 20260527-0000 — Created during greenfield setup as the first physical proof story.
+- 20260527-0001 — Added Scout 001 Mappadux spike as the first implementation check.

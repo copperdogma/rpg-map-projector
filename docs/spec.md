@@ -10,6 +10,8 @@ Build a portable tabletop tool that projects RPG module maps onto a physical 1-i
 
 The product accelerates battlefield setup for physical play. It should let a DM capture or import a module map, normalize it, hide player-invisible information, align it to the real mat grid, and project either map imagery or simplified outlines.
 
+Relevant scout: [Scout 001](scout/scout-001-existing-battle-map-projection-solutions.md) found close prior art in Mappadux / Dynamic Map Renderer v2 for fast image-to-player projection, but it should be treated as a useful reference rather than a product match because it trends toward full VTT features instead of module-map-to-physical-mat projection.
+
 ### spec:1.2 — Live Table Workflow
 
 1. DM opens a printed or PDF module map.
@@ -86,6 +88,8 @@ Start with a local web interface rather than a native iOS app.
 The local gateway should host the first web UI, receive maps and edit commands from the DM device, read frames from the calibration camera, render the projector output, and keep the low-latency calibration/projection loop close to the hardware.
 
 The gateway should support quick pairing by showing a QR code that opens the local web interface on the DM device. The first version can use this for local-network discovery. Later versions can use the same pairing idea to attach the local gateway to an authenticated remote account or prepared-map library.
+
+Relevant scout: [Scout 001](scout/scout-001-existing-battle-map-projection-solutions.md) should be revisited when designing the local web controller, QR/room-code pairing, player/projector split, static/PWA hosting path, local browser storage, and PeerJS-style or gateway-native networking model.
 
 ### spec:3.2 — DM Device Role
 
@@ -168,6 +172,8 @@ Required controls:
 - save reveal state,
 - undo/redo.
 
+Relevant scout: [Scout 001](scout/scout-001-existing-battle-map-projection-solutions.md) found Mappadux's fog/MapFX controls worth inspecting for interaction patterns, while preserving this product's simpler distinction between fog/mask and Clean/Hide.
+
 ### spec:4.3 — Clean / Hide Pen
 
 Clean removes DM-only marks inside otherwise visible space.
@@ -246,6 +252,8 @@ Full automatic grid detection is desirable, but manual fallback is required:
 - project a test grid,
 - nudge, scale, and rotate.
 
+Relevant scout: [Scout 001](scout/scout-001-existing-battle-map-projection-solutions.md) should inform source-map scale, true-table-scale rendering, and projector view controls. It does not solve the camera-to-projector-to-mat homography this section requires.
+
 ### spec:6.2 — Scale Rules
 
 Source maps may use 5 ft, 10 ft, or custom square scales. A 10 ft source square should be able to cover 2 by 2 physical 5 ft mat squares.
@@ -298,6 +306,8 @@ Early work should prove:
 - alignment can be corrected quickly by a DM,
 - projection is useful enough for tracing or terrain placement,
 - Map mode or Outlines mode has the stronger table value.
+
+Relevant scout: [Scout 001](scout/scout-001-existing-battle-map-projection-solutions.md) is the first prior-art packet for Story 001. Before building projection/pairing from scratch, inspect whether Mappadux should be forked/adapted, used as reference only, or rejected for this product.
 
 ### spec:7.2 — Open Questions
 
