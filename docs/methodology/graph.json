@@ -1,0 +1,400 @@
+{
+  "version": 1,
+  "paths": {
+    "ideal": "docs/ideal.md",
+    "spec": "docs/spec.md",
+    "state": "docs/methodology/state.yaml",
+    "graph": "docs/methodology/graph.json",
+    "stories_dir": "docs/stories",
+    "stories_index": "docs/stories.md",
+    "evals": "docs/evals/registry.yaml",
+    "adrs_dir": "docs/decisions",
+    "scout_index": "docs/scout.md",
+    "scout_dir": "docs/scout"
+  },
+  "ideal": {
+    "path": "docs/ideal.md",
+    "title": "Ideal: Battle Map Projection Assistant"
+  },
+  "spec": {
+    "path": "docs/spec.md",
+    "categories": [
+      {
+        "id": "spec:1",
+        "title": "Product Identity And Table Workflow",
+        "sections": [
+          {
+            "id": "spec:1.1",
+            "title": "Summary"
+          },
+          {
+            "id": "spec:1.2",
+            "title": "Live Table Workflow"
+          },
+          {
+            "id": "spec:1.3",
+            "title": "Prepared Workflow"
+          }
+        ],
+        "state": {
+          "substrate": "exists",
+          "last_reviewed": "2026-05-27"
+        },
+        "story_ids": [],
+        "eval_ids": []
+      },
+      {
+        "id": "spec:2",
+        "title": "Hardware Rig And Gateway Topology",
+        "sections": [
+          {
+            "id": "spec:2.1",
+            "title": "Prototype Rig"
+          },
+          {
+            "id": "spec:2.2",
+            "title": "Finished Home Rig"
+          }
+        ],
+        "state": {
+          "substrate": "partial",
+          "last_reviewed": "2026-05-27"
+        },
+        "story_ids": [
+          "001"
+        ],
+        "eval_ids": []
+      },
+      {
+        "id": "spec:3",
+        "title": "Software Architecture And Connectivity",
+        "sections": [
+          {
+            "id": "spec:3.1",
+            "title": "Local Web Interface"
+          },
+          {
+            "id": "spec:3.2",
+            "title": "DM Device Role"
+          },
+          {
+            "id": "spec:3.3",
+            "title": "Remote Server Direction"
+          }
+        ],
+        "state": {
+          "substrate": "partial",
+          "last_reviewed": "2026-05-27"
+        },
+        "story_ids": [
+          "001"
+        ],
+        "eval_ids": []
+      },
+      {
+        "id": "spec:4",
+        "title": "Map Project Model And Privacy Layers",
+        "sections": [
+          {
+            "id": "spec:4.1",
+            "title": "Core Map Model"
+          },
+          {
+            "id": "spec:4.2",
+            "title": "Fog / Mask"
+          },
+          {
+            "id": "spec:4.3",
+            "title": "Clean / Hide Pen"
+          },
+          {
+            "id": "spec:4.4",
+            "title": "Auto-Clean"
+          }
+        ],
+        "state": {
+          "substrate": "planned",
+          "last_reviewed": "2026-05-27"
+        },
+        "story_ids": [],
+        "eval_ids": []
+      },
+      {
+        "id": "spec:5",
+        "title": "Capture, Normalization, And Display",
+        "sections": [
+          {
+            "id": "spec:5.1",
+            "title": "Capture And Normalization"
+          },
+          {
+            "id": "spec:5.2",
+            "title": "Display Modes"
+          }
+        ],
+        "state": {
+          "substrate": "planned",
+          "last_reviewed": "2026-05-27"
+        },
+        "story_ids": [],
+        "eval_ids": []
+      },
+      {
+        "id": "spec:6",
+        "title": "Calibration, Scale, And Projection Controls",
+        "sections": [
+          {
+            "id": "spec:6.1",
+            "title": "Calibration"
+          },
+          {
+            "id": "spec:6.2",
+            "title": "Scale Rules"
+          },
+          {
+            "id": "spec:6.3",
+            "title": "Live Controls"
+          }
+        ],
+        "state": {
+          "substrate": "planned",
+          "last_reviewed": "2026-05-27"
+        },
+        "story_ids": [
+          "001"
+        ],
+        "eval_ids": []
+      },
+      {
+        "id": "spec:7",
+        "title": "MVP Exploration And Evidence",
+        "sections": [
+          {
+            "id": "spec:7.1",
+            "title": "MVP Direction"
+          },
+          {
+            "id": "spec:7.2",
+            "title": "Open Questions"
+          },
+          {
+            "id": "spec:7.3",
+            "title": "Deferred Methodology Lanes"
+          }
+        ],
+        "state": {
+          "substrate": "partial",
+          "last_reviewed": "2026-05-27"
+        },
+        "story_ids": [
+          "001"
+        ],
+        "eval_ids": []
+      }
+    ],
+    "compromises": [
+      {
+        "id": "B1",
+        "title": "Remote prep is expected later but excluded from MVP",
+        "category_id": "spec:1",
+        "state": {
+          "phase": "hold",
+          "last_reviewed": "2026-05-27"
+        },
+        "story_ids": []
+      },
+      {
+        "id": "B2",
+        "title": "Laptop-as-gateway is only a stand-in",
+        "category_id": "spec:2",
+        "state": {
+          "phase": "hold",
+          "last_reviewed": "2026-05-27"
+        },
+        "story_ids": [
+          "001"
+        ]
+      },
+      {
+        "id": "B3",
+        "title": "Hardware requirements are unknown",
+        "category_id": "spec:2",
+        "state": {
+          "phase": "climb",
+          "last_reviewed": "2026-05-27"
+        },
+        "story_ids": [
+          "001"
+        ]
+      },
+      {
+        "id": "B4",
+        "title": "Web first, native iOS later",
+        "category_id": "spec:3",
+        "state": {
+          "phase": "hold",
+          "last_reviewed": "2026-05-27"
+        },
+        "story_ids": []
+      },
+      {
+        "id": "B5",
+        "title": "Remote server is post-MVP",
+        "category_id": "spec:3",
+        "state": {
+          "phase": "hold",
+          "last_reviewed": "2026-05-27"
+        },
+        "story_ids": []
+      },
+      {
+        "id": "B6",
+        "title": "AI cleanup is optional",
+        "category_id": "spec:4",
+        "state": {
+          "phase": "hold",
+          "last_reviewed": "2026-05-27"
+        },
+        "story_ids": []
+      },
+      {
+        "id": "B7",
+        "title": "Calibration automation must not block manual correction",
+        "category_id": "spec:6",
+        "state": {
+          "phase": "climb",
+          "last_reviewed": "2026-05-27"
+        },
+        "story_ids": [
+          "001"
+        ]
+      }
+    ]
+  },
+  "state": {
+    "version": 1,
+    "format": "json-compatible-yaml",
+    "seeded_at": "2026-05-27",
+    "seeded_from": [
+      "docs/initial-concept.md",
+      "docs/ideal.md",
+      "docs/spec.md"
+    ],
+    "categories": {
+      "spec:1": {
+        "substrate": "exists",
+        "last_reviewed": "2026-05-27"
+      },
+      "spec:2": {
+        "substrate": "partial",
+        "last_reviewed": "2026-05-27"
+      },
+      "spec:3": {
+        "substrate": "partial",
+        "last_reviewed": "2026-05-27"
+      },
+      "spec:4": {
+        "substrate": "planned",
+        "last_reviewed": "2026-05-27"
+      },
+      "spec:5": {
+        "substrate": "planned",
+        "last_reviewed": "2026-05-27"
+      },
+      "spec:6": {
+        "substrate": "planned",
+        "last_reviewed": "2026-05-27"
+      },
+      "spec:7": {
+        "substrate": "partial",
+        "last_reviewed": "2026-05-27"
+      }
+    },
+    "compromises": {
+      "B1": {
+        "phase": "hold",
+        "last_reviewed": "2026-05-27"
+      },
+      "B2": {
+        "phase": "hold",
+        "last_reviewed": "2026-05-27"
+      },
+      "B3": {
+        "phase": "climb",
+        "last_reviewed": "2026-05-27"
+      },
+      "B4": {
+        "phase": "hold",
+        "last_reviewed": "2026-05-27"
+      },
+      "B5": {
+        "phase": "hold",
+        "last_reviewed": "2026-05-27"
+      },
+      "B6": {
+        "phase": "hold",
+        "last_reviewed": "2026-05-27"
+      },
+      "B7": {
+        "phase": "climb",
+        "last_reviewed": "2026-05-27"
+      }
+    },
+    "stories_index": {
+      "notes": "Generated projection of story metadata. Edit authored stories under docs/stories/ and rerun make methodology-compile."
+    },
+    "story_overrides": {
+      "category_refs": {}
+    },
+    "deferred_lanes": {
+      "architecture_audits": "Deferred until software architecture exists beyond docs.",
+      "ui_scout": "Deferred until there is a real browser UI.",
+      "eval_golden": "Deferred until there is a runnable calibration, image, or UI proof surface.",
+      "codebase_improvement": "Absent until there is enough code for a scan.",
+      "local_runtime_launcher": "Deferred until the web gateway exists; use Conductor port allocation before adding launcher scripts.",
+      "remote_server": "Expected after MVP for storage/auth/sync, but explicitly outside the first physical proof."
+    },
+    "supporting_surfaces": {
+      "scout": "present",
+      "adr": "present"
+    }
+  },
+  "stories": [
+    {
+      "id": "001",
+      "title": "Calibration Projection Spike",
+      "path": "docs/stories/story-001-calibration-projection-spike.md",
+      "status": "Pending",
+      "priority": "High",
+      "origin": "Kickoff identified physical calibration and projection alignment as the largest real risk before app, remote server, or AI cleanup work.",
+      "ideal_refs": [
+        "docs/ideal.md"
+      ],
+      "spec_refs": [
+        "spec:2",
+        "spec:3.1",
+        "spec:6",
+        "spec:7.1"
+      ],
+      "depends_on": [],
+      "category_refs": [
+        "spec:2",
+        "spec:3",
+        "spec:6",
+        "spec:7"
+      ],
+      "compromise_refs": [
+        "B2",
+        "B3",
+        "B7"
+      ]
+    }
+  ],
+  "adrs": [],
+  "scouts": [],
+  "evals": [],
+  "validation": {
+    "errors": [],
+    "warnings": []
+  }
+}

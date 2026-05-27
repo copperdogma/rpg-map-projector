@@ -1,0 +1,27 @@
+# Setup Checklist
+
+- [x] Mode chosen: `greenfield`
+- [x] Raw intake preserved at `docs/initial-concept.md`
+- [x] Project-specific `docs/ideal.md` exists
+- [x] Category-aligned `docs/spec.md` exists
+- [x] `docs/inbox.md` exists
+- [x] `docs/scout.md` and `docs/scout/` exist
+- [x] ADR framework exists under `docs/decisions/`
+- [x] `AGENTS.md` exists
+- [x] First story exists under `docs/stories/`
+- [x] Remote storage/auth recorded as expected post-MVP, not MVP scope
+- [x] QR-code pairing recorded as gateway behavior
+- [x] `docs/methodology/state.yaml` exists
+- [x] `docs/methodology/graph.json` generated
+- [x] `docs/stories.md` generated
+- [x] Sparse eval/golden deferral recorded
+- [x] Runtime launcher deferred until the web gateway exists
+- [x] Skill surface installed
+- [x] Scout skill and bootstrap template installed
+- [x] ADR bootstrap templates installed
+- [x] `make methodology-compile`
+- [x] `make methodology-check`
+- [x] `make skills-sync`
+- [x] `make skills-check`
+- [x] `make triage-facts-check`
+- [x] `git diff --check`

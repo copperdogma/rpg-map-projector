@@ -1,0 +1,46 @@
+{
+  "version": 1,
+  "format": "json-compatible-yaml",
+  "seeded_at": "2026-05-27",
+  "seeded_from": [
+    "docs/initial-concept.md",
+    "docs/ideal.md",
+    "docs/spec.md"
+  ],
+  "categories": {
+    "spec:1": { "substrate": "exists", "last_reviewed": "2026-05-27" },
+    "spec:2": { "substrate": "partial", "last_reviewed": "2026-05-27" },
+    "spec:3": { "substrate": "partial", "last_reviewed": "2026-05-27" },
+    "spec:4": { "substrate": "planned", "last_reviewed": "2026-05-27" },
+    "spec:5": { "substrate": "planned", "last_reviewed": "2026-05-27" },
+    "spec:6": { "substrate": "planned", "last_reviewed": "2026-05-27" },
+    "spec:7": { "substrate": "partial", "last_reviewed": "2026-05-27" }
+  },
+  "compromises": {
+    "B1": { "phase": "hold", "last_reviewed": "2026-05-27" },
+    "B2": { "phase": "hold", "last_reviewed": "2026-05-27" },
+    "B3": { "phase": "climb", "last_reviewed": "2026-05-27" },
+    "B4": { "phase": "hold", "last_reviewed": "2026-05-27" },
+    "B5": { "phase": "hold", "last_reviewed": "2026-05-27" },
+    "B6": { "phase": "hold", "last_reviewed": "2026-05-27" },
+    "B7": { "phase": "climb", "last_reviewed": "2026-05-27" }
+  },
+  "stories_index": {
+    "notes": "Generated projection of story metadata. Edit authored stories under docs/stories/ and rerun make methodology-compile."
+  },
+  "story_overrides": {
+    "category_refs": {}
+  },
+  "deferred_lanes": {
+    "architecture_audits": "Deferred until software architecture exists beyond docs.",
+    "ui_scout": "Deferred until there is a real browser UI.",
+    "eval_golden": "Deferred until there is a runnable calibration, image, or UI proof surface.",
+    "codebase_improvement": "Absent until there is enough code for a scan.",
+    "local_runtime_launcher": "Deferred until the web gateway exists; use Conductor port allocation before adding launcher scripts.",
+    "remote_server": "Expected after MVP for storage/auth/sync, but explicitly outside the first physical proof."
+  },
+  "supporting_surfaces": {
+    "scout": "present",
+    "adr": "present"
+  }
+}

@@ -2,8 +2,14 @@
 
 ## Current Prototype Assumptions
 
-- The first rig uses a generic laptop, HDMI projector, and iPhone remote camera.
-- The iPhone is mounted or slotted onto the projector so its position relative to the projector stays fixed.
+- The first rig uses a generic laptop as a stand-in for the eventual local gateway.
+- The likely finished home rig uses a Raspberry Pi or similar mini-computer, an off-the-shelf HDMI projector, and a cheap webcam.
+- The camera is fixed to the projector with a temporary cardboard, taped, or printed mount so its position relative to the projector stays fixed.
+- An iPhone remote camera is acceptable for early development before a dedicated webcam is available.
+- The local gateway hosts the first web interface unless testing proves a separate server is needed.
+- The gateway should display or expose a QR code so the DM can quickly open the local web interface.
+- The first versions should avoid mandatory AI API calls and should work on local hardware where practical.
+- Remote storage/auth is expected later for prep away from the projector, but it is optional and explicitly outside the MVP. Live projection should not require internet access.
 - The projector may sit on the table or clamp near the table rather than mounting overhead.
 - The battle mat has a visible 1-inch square grid.
 - Manual calibration fallback is acceptable for the first proof.
@@ -21,7 +27,15 @@ Skewed projection may produce uneven focus, dim corners, or glare.
 
 ### Camera Stability
 
-iPhone remote camera behavior may introduce latency, exposure shifts, resolution limits, or connection friction.
+iPhone remote camera behavior may introduce latency, exposure shifts, resolution limits, or connection friction. A dedicated webcam may become the more reliable calibration input.
+
+### Hardware Sizing
+
+The project needs a future hardware-requirements pass based on measured CPU/GPU needs, camera resolution, projection latency, local image operations, and whether any inpainting or cleanup work must run on the gateway.
+
+### Remote Storage Boundary
+
+Prepared-map storage is expected to belong on a remote authenticated server after the MVP, but adding that too early would slow the first physical proof. The data model should be sync-friendly without making sync mandatory.
 
 ### Calibration Error
 

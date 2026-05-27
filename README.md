@@ -8,15 +8,17 @@ The project is not trying to become a VTT. The core product promise is:
 
 ## Current Direction
 
-The first build path assumes a generic prototype rig:
+The first build path uses a laptop as a stand-in for the eventual local gateway:
 
-- laptop as the processing/control machine,
-- HDMI pico/projector output,
-- iPhone used as a fixed-position remote camera,
-- a temporary cardboard or printed mount that slots the phone against the projector,
+- laptop temporarily doing the gateway work,
+- HDMI projector output,
+- iPhone remote camera or cheap webcam as the calibration camera,
+- a temporary cardboard, taped, or printed mount that fixes the camera to the projector,
 - a physical 1-inch gridded battle mat.
 
-The phone-mounted-to-projector setup is meant to keep camera/projector geometry repeatable while still requiring per-placement calibration against the mat.
+The likely finished home setup is a Raspberry Pi or similar mini-computer connected to an off-the-shelf HDMI projector and fixed webcam. The DM connects from a phone or iPad to a local web interface, likely by scanning a QR code shown by the projector/gateway, while the gateway owns camera input, projector output, calibration, and projection alignment.
+
+A remote storage/auth server is expected later for prep away from the table, but live projection starts local-first so the MVP and table workflow do not depend on internet access.
 
 ## First Proof
 
@@ -29,3 +31,24 @@ Story 001 is a calibration and projection spike. It should prove that a rough pr
 - [docs/spec.md](docs/spec.md) distills the product spec from the seed.
 - [docs/assumptions.md](docs/assumptions.md) tracks early hardware and feasibility assumptions.
 - [docs/stories/story-001-calibration-projection-spike.md](docs/stories/story-001-calibration-projection-spike.md) defines the first proof story.
+- [docs/scout.md](docs/scout.md) indexes external research and hardware/library scouting.
+- [docs/decisions/README.md](docs/decisions/README.md) describes ADRs for hard-to-reverse choices.
+
+## Methodology
+
+This repo uses a sparse greenfield methodology package:
+
+- `docs/stories.md` is generated from story files.
+- `docs/methodology/graph.json` is generated from Ideal/spec/state/stories/evals.
+- `docs/scout/` holds external research and adoption decisions.
+- `docs/decisions/` holds ADRs for sticky product, hardware, and architecture choices.
+- Remote storage/auth, native iOS, eval harnesses, UI scout, runtime launcher, and codebase scans are deferred until the physical proof or implementation substrate exists.
+
+Useful checks:
+
+```bash
+make methodology-compile
+make methodology-check
+make skills-check
+make triage-facts-check
+```
