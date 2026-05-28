@@ -13,4 +13,4 @@
 
 | ID | Title | Priority | Status | Depends On | Link |
 |---|---|---|---|---|---|
-| 001 | Calibration Projection Spike | High | Pending | - | [story](stories/story-001-calibration-projection-spike.md) |
+| 001 | Calibration Projection Spike | High | In Progress | - | [story](stories/story-001-calibration-projection-spike.md) |

@@ -157,7 +157,7 @@
           }
         ],
         "state": {
-          "substrate": "planned",
+          "substrate": "partial",
           "last_reviewed": "2026-05-27"
         },
         "story_ids": [
@@ -302,7 +302,7 @@
         "last_reviewed": "2026-05-27"
       },
       "spec:6": {
-        "substrate": "planned",
+        "substrate": "partial",
         "last_reviewed": "2026-05-27"
       },
       "spec:7": {
@@ -348,10 +348,10 @@
     },
     "deferred_lanes": {
       "architecture_audits": "Deferred until software architecture exists beyond docs.",
-      "ui_scout": "Deferred until there is a real browser UI.",
-      "eval_golden": "Deferred until there is a runnable calibration, image, or UI proof surface.",
+      "ui_scout": "Deferred until the Story 001 browser workbench survives a physical pass; a browser UI exists but is not stable product UI.",
+      "eval_golden": "Basic homography and browser smoke checks exist for the Story 001 workbench; golden evals are deferred until real hardware measurements or stable calibration flows.",
       "codebase_improvement": "Absent until there is enough code for a scan.",
-      "local_runtime_launcher": "Deferred until the web gateway exists; use Conductor port allocation before adding launcher scripts.",
+      "local_runtime_launcher": "Present for the Story 001 browser workbench: npm local:* commands use Conductor's rpg-map-projector port allocation. Future gateway/API services can extend the allocation after the physical proof identifies real service boundaries.",
       "remote_server": "Expected after MVP for storage/auth/sync, but explicitly outside the first physical proof."
     },
     "supporting_surfaces": {
@@ -364,7 +364,7 @@
       "id": "001",
       "title": "Calibration Projection Spike",
       "path": "docs/stories/story-001-calibration-projection-spike.md",
-      "status": "Pending",
+      "status": "In Progress",
       "priority": "High",
       "origin": "Kickoff identified physical calibration and projection alignment as the largest real risk before app, remote server, or AI cleanup work.",
       "ideal_refs": [

@@ -24,6 +24,26 @@ A remote storage/auth server is expected later for prep away from the table, but
 
 Story 001 is a calibration and projection spike. It should prove that a rough projector/camera setup can map a source grid onto the real mat well enough for a DM to trace walls, place terrain, or run an encounter without losing session momentum.
 
+The current Story 001 prototype is a local browser workbench:
+
+- controller view: `http://127.0.0.1:5178/`
+- projector view: `http://127.0.0.1:5178/projector.html`
+- optional false camera inputs can be placed in `input/map-pix/`; this folder is ignored by git because the local test photos may be third-party sales images.
+
+Run it with:
+
+```bash
+npm install
+npm run local:app
+```
+
+The local launcher reads Conductor's port allocation from
+`/Users/cam/Documents/Projects/conductor/local-dev-ports.json`. The primary
+checkout uses UI port `5178`; worktrees receive stable ports from the
+`5900-5999` range. Use `npm run local:status` to inspect the current process
+and `npm run local:stop` to stop only this checkout's launcher-owned service by
+default.
+
 ## Project Docs
 
 - [docs/initial-concept.md](docs/initial-concept.md) preserves the raw kickoff seed.
@@ -42,7 +62,10 @@ This repo uses a sparse greenfield methodology package:
 - `docs/methodology/graph.json` is generated from Ideal/spec/state/stories/evals.
 - `docs/scout/` holds external research and adoption decisions.
 - `docs/decisions/` holds ADRs for sticky product, hardware, and architecture choices.
-- Remote storage/auth, native iOS, eval harnesses, UI scout, runtime launcher, and codebase scans are deferred until the physical proof or implementation substrate exists.
+- Remote storage/auth, native iOS, eval harnesses, UI scout, and codebase scans
+  are deferred until the physical proof or implementation substrate exists.
+- The local runtime launcher is present for the Story 001 browser workbench and
+  uses Conductor's assigned ports.
 
 Useful checks:
 
@@ -51,4 +74,6 @@ make methodology-compile
 make methodology-check
 make skills-check
 make triage-facts-check
+make local-status
+npm run check
 ```

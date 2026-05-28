@@ -19,7 +19,10 @@ Read first:
 - `docs/scout.md`
 - `docs/runbooks/triage.md`
 
-For now, default pressure is Story 001 unless new evidence changes the ranking. Do not route to remote storage/auth, native iOS, AI cleanup, UI polish, or runtime launcher work before the calibration/projection proof has physical evidence.
+For now, default pressure is Story 001 unless new evidence changes the ranking.
+Do not route to remote storage/auth, native iOS, AI cleanup, UI polish, or
+additional runtime architecture work before the calibration/projection proof
+has physical evidence. The current launcher only owns the Vite workbench port.
 
 If scoped:
 

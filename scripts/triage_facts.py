@@ -52,7 +52,7 @@ def facts() -> dict[str, Any]:
             "validation": graph.get("validation"),
         },
         "lanes": {
-            "runtime_launcher": "deferred",
+            "runtime_launcher": "present",
             "ui_scout": "deferred",
             "eval_golden": "deferred",
             "codebase_improvement": "absent",

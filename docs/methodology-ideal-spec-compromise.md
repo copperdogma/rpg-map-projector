@@ -18,12 +18,12 @@ The point is not to add process. The point is to keep later implementation work 
 
 ## Sparse Setup Notes
 
-This repo has no implementation yet. The following lanes are intentionally deferred:
+This repo now has a Story 001 browser workbench and a narrow allocation-backed
+local runtime launcher. The following lanes are intentionally deferred:
 
 - automated eval/golden harnesses,
 - browser/UI scout,
-- local runtime launcher,
 - codebase-improvement scans,
 - architecture audits.
 
-They should be added when real code or runtime surfaces exist.
+They should be added when real evidence warrants the overhead.

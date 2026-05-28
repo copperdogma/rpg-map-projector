@@ -1,7 +1,7 @@
 ---
 {
   "title": "Calibration Projection Spike",
-  "status": "Pending",
+  "status": "In Progress",
   "priority": "High",
   "origin": "Kickoff identified physical calibration and projection alignment as the largest real risk before app, remote server, or AI cleanup work.",
   "ideal_refs": ["docs/ideal.md"],
@@ -61,7 +61,66 @@ Build the smallest experiment that can:
 - Saved map library.
 - Automatic perfect grid detection.
 
+## Implementation Plan
+
+- [x] Use Scout 001 to decide whether Story 001 should fork/adapt Mappadux or borrow concepts only.
+- [x] Create the smallest local web calibration workbench: controller view, projector view, calibration grid, source scale toggle, and manual nudge/scale/rotate controls.
+- [x] Add local false-input image support and a first-pass software grid detector before requiring a physical mat.
+- [x] Simulate the detect-to-project loop with browser screenshots before physical hardware is available.
+- [x] Add homography math tests so the transform behavior is not only visually inspected.
+- [x] Add browser smoke coverage for the controller/projector surfaces.
+- [x] Record current evidence, hardware gaps, and next physical-test instructions in this story.
+- [ ] Run a physical projector/camera session and record real alignment error, setup time, placement notes, and failure modes.
+
+## Current Mappadux Decision
+
+Use Mappadux as implementation reference only for Story 001. Borrow concepts around a separate projector view, true-table-scale thinking, static/PWA viability, local storage, and future QR/pairing. Do not fork or adapt it yet because its architecture is optimized for a broad VTT-at-home workflow and does not solve this story's fixed camera/projector homography against a real mat.
+
+## Current Evidence
+
+- Added a Vite/TypeScript calibration workbench with a controller view at `/` and projector view at `/projector.html`.
+- The controller can start a browser camera feed when one is available, falls back to a synthetic mat preview, and syncs calibration state to the projector view through local storage plus `BroadcastChannel`.
+- The projector view renders a calibration quadrilateral and grid from four physical-mat-to-projector anchor pairs.
+- Added an Auto Grid Detection panel that can analyze a generated test mat, uploaded image, or local false camera input from `input/map-pix/`.
+- Local false inputs are intentionally ignored by git because they may be third-party sales images; the committed app only references them as optional dev fixtures.
+- The first-pass detector uses image edges, roughly orthogonal line families, regular line spacing, and lattice-support checks to estimate battle-mat corners, row/column counts, and confidence.
+- Detected corners render as draggable orange handles on the preview, making direct visual correction the primary fallback when auto detection is close but wrong.
+- Auto detection now applies detected corner bounds to the projector anchors only when quality gates pass. The real camera-to-projector delta still needs separate calibration when hardware is attached.
+- The preview overlay now shows the current physical projection span fitted to the detected corners, rather than trusting the detector's rough row/column count.
+- Added a stricter axis-aligned grid pass for clean straight-on inputs. The generated test mat now detects as 12 x 8 with known corner error under 5 px; the previous 8 x 4 partial detection is no longer accepted by tests.
+- Added a bright-on-dark projected-grid detector so a projector screenshot can still be fed back as a simulated camera frame and auto-aligned.
+- Added lattice-support scoring so a plausible-looking quadrilateral is not enough to auto-align; proposed grid lines must line up with repeated line evidence in the image.
+- Rejected detections now render as orange dashed candidates with `Candidate only; not applied` status, warning styling, lattice-support percentage, `Force Apply Candidate` labeling, and unchanged projector anchors. The green projected grid is reserved for accepted auto-align passes.
+- Added a Conductor allocation-backed local runtime launcher. The primary checkout now uses `http://127.0.0.1:5178/` for the controller and `http://127.0.0.1:5178/projector.html` for the projector view; worktrees derive stable ports from the `rpg-map-projector` allocation.
+- Quick external algorithm check: OpenCV's Hough guidance matches the current edge/line-family approach, but OpenCV also exposes Line Segment Detector, chessboard/circle-grid calibration, and homography APIs. If real-camera detection stays weak, create a scout for OpenCV.js / WASM line-segment or fiducial calibration instead of further hardening the hand-rolled browser detector.
+- Manual fallback controls still exist for source scale (`5 ft` or `10 ft` source squares), nudge, scale, rotate, anchor coordinate edits, brightness, and visibility toggles.
+- Session evidence fields capture setup time, measured error, placement notes, failure modes, and exportable JSON.
+- Unit tests cover homography solving, manual transform helpers, detected-grid-to-projector anchor mapping, and known-corner accuracy for a synthetic grid. Browser tests cover controller rendering, projector rendering, source-scale persistence, generated false-input detection with 12 x 8 / under-5-px corner accuracy, rejected-candidate UI copy/styling, and a projector screenshot fed back as a simulated camera frame.
+- Local false-input scan on 2026-05-27 after the stricter lattice gate: the generated test mat and projected-grid screenshot auto-align; all 11 third-party sales photos are candidate-only / not applied because their proposed grids have low lattice support, out-of-frame corners, or too little usable grid area. These sales photos are useful negative fixtures, not proof that real camera calibration is solved.
+- Simulated screenshot evidence was captured under `test-results/story-001-final-current-sample-0.png`, `test-results/story-001-final-current-sample-4.png`, and `test-results/story-001-final-current-sample-10.png`. A delegated visual review accepted the generated control image as credible auto-align evidence and confirmed the two sales-photo cases no longer present bad detections as successful projection alignment.
+
+## Remaining Physical Evidence
+
+This story is not complete until hardware is attached. The next pass needs an HDMI projector or second display plus a camera source, then should record:
+
+- approximate alignment error in inches or fractions of a mat square,
+- setup time from opening the workbench to useful projection,
+- whether direct visual tuning or camera-feed tuning is faster,
+- camera/projector placement notes,
+- whether detected camera-space grid corners can drive the projector-space transform quickly enough,
+- whether the simulated camera-image-to-projector fit should become a real camera-to-projector calibration model or be replaced by a hardware-specific calibration routine,
+- whether direct corner dragging is sufficient when auto detection is wrong,
+- whether the manual nudge/scale/rotate controls are still needed beyond debug recovery,
+- whether the next story should improve calibration, source-map normalization, UI controls, or hardware selection.
+
 ## Work Log
 
 - 20260527-0000 — Created during greenfield setup as the first physical proof story.
 - 20260527-0001 — Added Scout 001 Mappadux spike as the first implementation check.
+- 20260527-0002 — Started Story 001; chose a narrow local calibration workbench over forking Mappadux.
+- 20260527-0003 — Added the local controller/projector calibration workbench, homography tests, Playwright smoke tests, and current evidence notes.
+- 20260527-0004 — Added local battle-mat photo fixtures as ignored false camera inputs, first-pass grid detection, draggable detected-corner correction, and sample-scan evidence.
+- 20260527-0005 — Added simulated detect-to-project alignment: detected corners now update projector anchors, manual corner dragging re-applies anchors, and Playwright feeds a projector screenshot back as a fake camera frame.
+- 20260527-0006 — Raised validation standards after visual review exposed a partial false positive on the generated mat; added known-corner gates and an axis-aligned detector path for clean inputs.
+- 20260527-0007 — Reworked Hough selection toward regularly spaced line families, added lattice-support scoring, rejected bad sales-photo detections as candidate-only, added a bright-on-dark projected-pattern detector, and updated the UI so rejected candidates are not visually presented as applied projection alignment.
+- 20260528-0715 — Added Conductor port allocation and local launcher/status/stop commands for the Story 001 workbench; verified controller and projector views on assigned UI port 5178 with `npm run check`.

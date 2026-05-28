@@ -39,7 +39,9 @@ Read these in order:
 - Keep live projection local-first. Remote storage/auth is expected later for prep and sync, but it is not part of the MVP and must not become required for live play.
 - Start with a gateway-hosted web UI. Native iOS stays deferred until the web workflow proves the value and limitations.
 - Use QR-code pairing as the default discovery idea for the DM device opening the local gateway UI.
-- Do not create runtime launchers, UI scouts, codebase scans, or eval harnesses before real code/runtime surfaces exist.
+- Keep runtime launchers tied to Conductor's local port allocation. Do not add
+  UI scouts, codebase scans, or eval harnesses before real evidence warrants
+  them.
 - Use `docs/scout/` for external evidence before hardware, library, SDK, auth/storage, or architecture adoption.
 - Use ADRs for hard-to-reverse choices such as gateway/server boundaries, native app adoption, calibration architecture, and hardware requirements.
 
@@ -51,7 +53,22 @@ make methodology-check
 make skills-sync
 make skills-check
 make triage-facts-check
+make local-status
 ```
+
+## Local Runtime
+
+Use the allocation-backed launcher instead of raw Vite defaults:
+
+```bash
+npm run local:app
+npm run local:status
+npm run local:stop
+```
+
+The primary checkout uses `http://127.0.0.1:5178/` for the controller and
+`http://127.0.0.1:5178/projector.html` for the projector view. Worktrees derive
+stable ports from Conductor's `rpg-map-projector` allocation.
 
 ## Prototype Bias
 

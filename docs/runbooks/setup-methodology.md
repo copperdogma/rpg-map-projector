@@ -26,7 +26,8 @@ This repo has the sparse no-code product package:
 - state/graph generation,
 - scout and ADR framework,
 - cheap skill-surface checks,
-- explicit deferral of runtime, UI scout, eval/golden, and codebase scans.
+- allocation-backed local runtime launcher for the Story 001 Vite workbench,
+- explicit deferral of UI scout, eval/golden, and codebase scans.
 
 ## Validation
 
@@ -41,4 +42,6 @@ make triage-facts-check
 git diff --check
 ```
 
-Do not add app/runtime launchers until there is a real local web gateway. When that exists, use Conductor's local-dev port allocation rather than inventing a port range.
+The current app launcher is intentionally narrow: it owns the Vite workbench
+port only. Add gateway/API services later only when the physical proof or a
+follow-up architecture story identifies real service boundaries.

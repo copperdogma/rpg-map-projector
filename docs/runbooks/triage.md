@@ -15,4 +15,8 @@ Read:
 
 For now, the strongest known next action is Story 001 unless new hardware, UI, or remote-server evidence changes the priority.
 
-Do not recommend remote storage/auth, native iOS, AI cleanup, or runtime launcher work before the calibration/projection loop has physical evidence. If external evidence is the blocker, recommend a scout; if a sticky decision is the blocker, recommend an ADR.
+Do not recommend remote storage/auth, native iOS, AI cleanup, or additional
+runtime architecture work before the calibration/projection loop has physical
+evidence. The current local launcher is only the allocation-backed Vite
+workbench. If external evidence is the blocker, recommend a scout; if a sticky
+decision is the blocker, recommend an ADR.
