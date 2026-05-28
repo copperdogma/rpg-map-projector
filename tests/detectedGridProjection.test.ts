@@ -67,6 +67,39 @@ describe('detected grid projection alignment', () => {
     expect(outOfFrame.ok).toBe(false);
     expect(outOfFrame.issues.join(' ')).toContain('outside the image');
   });
+
+  it('rejects detected grids that are larger than the current calibration span', () => {
+    const quality = evaluateDetectedGridForAutoAlign({
+      ...detectedGrid([
+        { x: 100, y: 100 },
+        { x: 900, y: 100 },
+        { x: 900, y: 650 },
+        { x: 100, y: 650 },
+      ]),
+      columns: 28,
+      rows: 26,
+      confidence: 0.92,
+    });
+
+    expect(quality.ok).toBe(false);
+    expect(quality.issues.join(' ')).toContain('larger than the current 12 x 8 calibration span');
+  });
+
+  it('rejects low-lattice detections even when the outline looks plausible', () => {
+    const quality = evaluateDetectedGridForAutoAlign({
+      ...detectedGrid([
+        { x: 100, y: 100 },
+        { x: 900, y: 100 },
+        { x: 900, y: 650 },
+        { x: 100, y: 650 },
+      ]),
+      confidence: 0.93,
+      latticeScore: 0.1,
+    });
+
+    expect(quality.ok).toBe(false);
+    expect(quality.issues.join(' ')).toContain('lattice support is below the auto-align threshold');
+  });
 });
 
 function defaultAnchors(): CalibrationAnchor[] {
@@ -88,6 +121,7 @@ function detectedGrid(corners: DetectedGrid['corners']): DetectedGrid {
     columns: 12,
     rows: 8,
     confidence: 0.9,
+    latticeScore: 0.9,
     families: [
       { angleDegrees: 0, lineCount: 13, score: 100 },
       { angleDegrees: 90, lineCount: 9, score: 80 },

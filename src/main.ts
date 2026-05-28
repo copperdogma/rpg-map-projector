@@ -42,6 +42,7 @@ app.innerHTML = `
       </div>
       <div class="topbar-actions">
         <a class="button primary" href="/projector.html" target="_blank" rel="noreferrer">Open Projector View</a>
+        <a class="button" href="/labeler.html">Label Fixtures</a>
         <button class="button" id="reset-state" type="button">Reset</button>
       </div>
     </header>

@@ -61,7 +61,8 @@
           "last_reviewed": "2026-05-27"
         },
         "story_ids": [
-          "001"
+          "001",
+          "002"
         ],
         "eval_ids": []
       },
@@ -136,7 +137,9 @@
           "substrate": "planned",
           "last_reviewed": "2026-05-27"
         },
-        "story_ids": [],
+        "story_ids": [
+          "002"
+        ],
         "eval_ids": []
       },
       {
@@ -161,7 +164,8 @@
           "last_reviewed": "2026-05-27"
         },
         "story_ids": [
-          "001"
+          "001",
+          "002"
         ],
         "eval_ids": []
       },
@@ -187,7 +191,8 @@
           "last_reviewed": "2026-05-27"
         },
         "story_ids": [
-          "001"
+          "001",
+          "002"
         ],
         "eval_ids": []
       }
@@ -224,7 +229,8 @@
           "last_reviewed": "2026-05-27"
         },
         "story_ids": [
-          "001"
+          "001",
+          "002"
         ]
       },
       {
@@ -266,7 +272,8 @@
           "last_reviewed": "2026-05-27"
         },
         "story_ids": [
-          "001"
+          "001",
+          "002"
         ]
       }
     ]
@@ -388,6 +395,33 @@
         "B3",
         "B7"
       ]
+    },
+    {
+      "id": "002",
+      "title": "Labeled Fixture Detector Benchmark",
+      "path": "docs/stories/story-002-labeled-fixture-detector-benchmark.md",
+      "status": "Pending",
+      "priority": "High",
+      "origin": "Story 001 produced a labeled false-input set. The next calibration step needs a bounded scoring harness before more detector tuning or library adoption.",
+      "ideal_refs": [
+        "docs/ideal.md"
+      ],
+      "spec_refs": [
+        "spec:5.1",
+        "spec:6.1",
+        "spec:7.1"
+      ],
+      "depends_on": [],
+      "category_refs": [
+        "spec:2",
+        "spec:5",
+        "spec:6",
+        "spec:7"
+      ],
+      "compromise_refs": [
+        "B3",
+        "B7"
+      ]
     }
   ],
   "adrs": [],
@@ -405,6 +439,19 @@
         "spec:5",
         "spec:6",
         "spec:7"
+      ]
+    },
+    {
+      "id": "002",
+      "title": "Grid Detection And Calibration Libraries",
+      "path": "docs/scout/scout-002-grid-detection-calibration-libraries.md",
+      "status": "Filed",
+      "spec_refs": [
+        "spec:2",
+        "spec:3.1",
+        "spec:5.1",
+        "spec:6.1",
+        "spec:7.1"
       ]
     }
   ],

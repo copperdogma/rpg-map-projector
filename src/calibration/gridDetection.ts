@@ -40,6 +40,8 @@ const MAX_ANALYSIS_SIZE = 720;
 const DEFAULT_HOUGH_PEAK_RATIO = 0.18;
 const FALLBACK_HOUGH_PEAK_RATIO = 0.12;
 const MAX_HOUGH_PEAKS = 320;
+const MIN_AXIS_PREVIEW_LATTICE_SUPPORT = 0.05;
+const MIN_HOUGH_PREVIEW_LATTICE_SUPPORT = 0.08;
 
 export async function detectGridFromImage(
   image: HTMLImageElement,
@@ -81,7 +83,7 @@ export function detectGridFromRaster(raster: Raster): {
   message: string;
 } | null {
   const axisAligned = detectAxisAlignedGridFromRaster(raster);
-  if (axisAligned && axisAligned.confidence >= 0.72) return axisAligned;
+  if (axisAligned && shouldUseAxisAlignedCandidate(axisAligned)) return axisAligned;
 
   const brightOnDark = detectProjectedGridFromDarkRaster(raster);
   if (brightOnDark) return brightOnDark;
@@ -94,6 +96,17 @@ export function detectGridFromRaster(raster: Raster): {
   if (primary && primary.columns >= 4 && primary.rows >= 4) return primary;
 
   return detectGridFromHough(raster, edges, hough, FALLBACK_HOUGH_PEAK_RATIO, 0.2) ?? primary;
+}
+
+function shouldUseAxisAlignedCandidate(candidate: {
+  confidence: number;
+  latticeScore: number;
+}): boolean {
+  return candidate.latticeScore >= 0.4
+    || (
+      candidate.confidence >= 0.4
+      && candidate.latticeScore >= MIN_AXIS_PREVIEW_LATTICE_SUPPORT
+    );
 }
 
 function detectProjectedGridFromDarkRaster(raster: Raster): {
@@ -168,33 +181,37 @@ function detectAxisAlignedGridFromRaster(raster: Raster): {
   const gray = grayscale(raster);
   const { columnScores, rowScores } = thinLineScores(gray, raster.width, raster.height);
 
-  const vertical = chooseRegularLineRun(findScorePeaks(columnScores, 0.24), raster.width);
-  const horizontal = chooseRegularLineRun(findScorePeaks(rowScores, 0.24), raster.height);
+  const vertical = chooseAxisLineRun(findScorePeaks(columnScores, 0.24), raster.width);
+  const horizontal = chooseAxisLineRun(findScorePeaks(rowScores, 0.24), raster.height);
   if (!vertical || !horizontal) return null;
 
   const minX = vertical.positions[0];
   const maxX = vertical.positions[vertical.positions.length - 1];
   const minY = horizontal.positions[0];
   const maxY = horizontal.positions[horizontal.positions.length - 1];
+  const columns = Math.max(2, vertical.positions.length - 1);
+  const rows = Math.max(2, horizontal.positions.length - 1);
+  const corners: [Point, Point, Point, Point] = [
+    { x: minX, y: minY },
+    { x: maxX, y: minY },
+    { x: maxX, y: maxY },
+    { x: minX, y: maxY },
+  ];
   const coverage = Math.min((maxX - minX) / raster.width, (maxY - minY) / raster.height);
   const areaRatio = ((maxX - minX) * (maxY - minY)) / Math.max(1, raster.width * raster.height);
   const lineCountScore = Math.min(1, (vertical.positions.length + horizontal.positions.length) / 18);
+  const latticeScore = scoreLatticeSupport(raster, corners, columns, rows);
   const confidence = Math.round(Math.min(
     0.97,
     vertical.regularity * 0.33 + horizontal.regularity * 0.33 + coverage * 0.12 + lineCountScore * 0.12 + Math.min(1, areaRatio / 0.35) * 0.1,
   ) * 100) / 100;
 
   return {
-    corners: [
-      { x: minX, y: minY },
-      { x: maxX, y: minY },
-      { x: maxX, y: maxY },
-      { x: minX, y: maxY },
-    ],
-    columns: Math.max(2, vertical.positions.length - 1),
-    rows: Math.max(2, horizontal.positions.length - 1),
+    corners,
+    columns,
+    rows,
     confidence,
-    latticeScore: 0.95,
+    latticeScore,
     families: [
       {
         angleDegrees: 90,
@@ -237,6 +254,68 @@ function thinContrast(center: number, surrounds: number): number {
   return Math.max(0, Math.abs(center - surrounds) - 3);
 }
 
+function chooseAxisLineRun(peaks: number[], span: number): AxisLineRun | null {
+  if (peaks.length < 5) return null;
+
+  const minStep = Math.max(8, span / 100);
+  const maxStep = span / 3;
+  const candidateSteps = uniqueSorted(
+    peaks
+      .flatMap((peak, index) => peaks.slice(index + 1).map((other) => Math.abs(other - peak)))
+      .flatMap((delta) => [1, 2, 3, 4].map((divisor) => delta / divisor))
+      .filter((step) => step >= minStep && step <= maxStep),
+  );
+
+  let best: AxisLineRun | null = null;
+  let bestScore = -Infinity;
+  for (const step of candidateSteps) {
+    const tolerance = Math.max(3, step * 0.22);
+    for (const phase of peaks) {
+      const matched = new Map<number, { position: number; delta: number }>();
+      for (const peak of peaks) {
+        const lineIndex = Math.round((peak - phase) / step);
+        const expected = phase + lineIndex * step;
+        const delta = Math.abs(peak - expected);
+        if (delta > tolerance) continue;
+
+        const existing = matched.get(lineIndex);
+        if (!existing || delta < existing.delta) matched.set(lineIndex, { position: peak, delta });
+      }
+
+      const indexes = [...matched.keys()].sort((a, b) => a - b);
+      if (indexes.length < 5) continue;
+
+      for (let start = 0; start < indexes.length; start += 1) {
+        for (let end = start + 4; end < indexes.length; end += 1) {
+          const minIndex = indexes[start];
+          const maxIndex = indexes[end];
+          const expectedCount = maxIndex - minIndex + 1;
+          if (expectedCount < 5) continue;
+
+          const matchedInWindow = indexes.filter((index) => index >= minIndex && index <= maxIndex);
+          const matchRatio = matchedInWindow.length / expectedCount;
+          if (matchRatio < 0.58) continue;
+
+          const positions = Array.from({ length: expectedCount }, (_, offset) => {
+            const lineIndex = minIndex + offset;
+            return matched.get(lineIndex)?.position ?? phase + lineIndex * step;
+          });
+          const meanError = matchedInWindow.reduce((sum, index) => sum + (matched.get(index)?.delta ?? tolerance), 0) / matchedInWindow.length;
+          const regularity = Math.max(0, 1 - meanError / tolerance) * matchRatio;
+          const runSpan = positions[positions.length - 1] - positions[0];
+          const score = matchedInWindow.length * 1000 + runSpan * 2 + matchRatio * 700 + regularity * 500;
+          if (score > bestScore) {
+            bestScore = score;
+            best = { positions, step, regularity };
+          }
+        }
+      }
+    }
+  }
+
+  return best;
+}
+
 function detectGridFromHough(
   raster: Raster,
   edges: Array<{ x: number; y: number; weight: number }>,
@@ -273,9 +352,13 @@ function detectGridFromHough(
   }
 
   const corners = orderCorners(intersections as Point[]);
+  if (!cornersWithinRaster(corners, raster)) return null;
+
   const columns = Math.max(2, Math.min(80, countFamilyLines(familyA) - 1));
   const rows = Math.max(2, Math.min(80, countFamilyLines(familyB) - 1));
   const latticeScore = scoreLatticeSupport(raster, corners, columns, rows);
+  if (latticeScore < MIN_HOUGH_PREVIEW_LATTICE_SUPPORT) return null;
+
   const baseConfidence = scoreConfidence(familyA, familyB, edges.length);
   const confidence = Math.round((baseConfidence * (0.35 + latticeScore * 0.65)) * 100) / 100;
 
@@ -291,6 +374,15 @@ function detectGridFromHough(
     ],
     message: `Detected ${columns} x ${rows} grid estimate from ${familyA.lines.length} + ${familyB.lines.length} line candidates.`,
   };
+}
+
+function cornersWithinRaster(corners: Point[], raster: Raster): boolean {
+  return corners.every((corner) => (
+    corner.x >= 0
+    && corner.y >= 0
+    && corner.x <= raster.width
+    && corner.y <= raster.height
+  ));
 }
 
 function scoreLatticeSupport(

@@ -21,6 +21,9 @@ export interface AutoAlignQuality {
 }
 
 const MIN_AUTO_ALIGN_AREA_RATIO = 0.35;
+const MIN_AUTO_ALIGN_LATTICE_SUPPORT = 0.2;
+const MAX_AUTO_ALIGN_COLUMNS = 16;
+const MAX_AUTO_ALIGN_ROWS = 12;
 
 export function fitImageInProjector(
   imageWidth: number,
@@ -87,6 +90,12 @@ export function evaluateDetectedGridForAutoAlign(detected: DetectedGrid): AutoAl
   }
   if (detected.confidence < 0.72) {
     issues.push(`${Math.round(detected.confidence * 100)}% confidence is below the auto-align threshold`);
+  }
+  if (detected.latticeScore !== undefined && detected.latticeScore < MIN_AUTO_ALIGN_LATTICE_SUPPORT) {
+    issues.push(`${Math.round(detected.latticeScore * 100)}% lattice support is below the auto-align threshold`);
+  }
+  if (detected.columns > MAX_AUTO_ALIGN_COLUMNS || detected.rows > MAX_AUTO_ALIGN_ROWS) {
+    issues.push(`detected ${detected.columns} x ${detected.rows} grid is larger than the current 12 x 8 calibration span`);
   }
 
   return {

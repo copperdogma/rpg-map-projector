@@ -14,3 +14,4 @@
 | ID | Title | Priority | Status | Depends On | Link |
 |---|---|---|---|---|---|
 | 001 | Calibration Projection Spike | High | In Progress | - | [story](stories/story-001-calibration-projection-spike.md) |
+| 002 | Labeled Fixture Detector Benchmark | High | Pending | - | [story](stories/story-002-labeled-fixture-detector-benchmark.md) |

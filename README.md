@@ -28,7 +28,9 @@ The current Story 001 prototype is a local browser workbench:
 
 - controller view: `http://127.0.0.1:5178/`
 - projector view: `http://127.0.0.1:5178/projector.html`
+- fixture labeler: `http://127.0.0.1:5178/labeler.html`
 - optional false camera inputs can be placed in `input/map-pix/`; this folder is ignored by git because the local test photos may be third-party sales images.
+- benchmark grid labels are saved to `input/map-grid-labels.json` from the fixture labeler.
 
 Run it with:
 
