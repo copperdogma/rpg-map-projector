@@ -81,7 +81,7 @@ export function detectGridFromRaster(raster: Raster): {
   message: string;
 } | null {
   const axisAligned = detectAxisAlignedGridFromRaster(raster);
-  if (axisAligned && axisAligned.confidence >= 0.84) return axisAligned;
+  if (axisAligned && axisAligned.confidence >= 0.72) return axisAligned;
 
   const brightOnDark = detectProjectedGridFromDarkRaster(raster);
   if (brightOnDark) return brightOnDark;
@@ -166,19 +166,10 @@ function detectAxisAlignedGridFromRaster(raster: Raster): {
   message: string;
 } | null {
   const gray = grayscale(raster);
-  const columnScores = new Float64Array(raster.width);
-  const rowScores = new Float64Array(raster.height);
+  const { columnScores, rowScores } = thinLineScores(gray, raster.width, raster.height);
 
-  for (let y = 0; y < raster.height; y += 1) {
-    for (let x = 0; x < raster.width; x += 1) {
-      const darkness = Math.max(0, 220 - gray[y * raster.width + x]);
-      columnScores[x] += darkness;
-      rowScores[y] += darkness;
-    }
-  }
-
-  const vertical = chooseRegularLineRun(findScorePeaks(columnScores), raster.width);
-  const horizontal = chooseRegularLineRun(findScorePeaks(rowScores), raster.height);
+  const vertical = chooseRegularLineRun(findScorePeaks(columnScores, 0.24), raster.width);
+  const horizontal = chooseRegularLineRun(findScorePeaks(rowScores, 0.24), raster.height);
   if (!vertical || !horizontal) return null;
 
   const minX = vertical.positions[0];
@@ -186,10 +177,11 @@ function detectAxisAlignedGridFromRaster(raster: Raster): {
   const minY = horizontal.positions[0];
   const maxY = horizontal.positions[horizontal.positions.length - 1];
   const coverage = Math.min((maxX - minX) / raster.width, (maxY - minY) / raster.height);
+  const areaRatio = ((maxX - minX) * (maxY - minY)) / Math.max(1, raster.width * raster.height);
   const lineCountScore = Math.min(1, (vertical.positions.length + horizontal.positions.length) / 18);
   const confidence = Math.round(Math.min(
     0.97,
-    vertical.regularity * 0.35 + horizontal.regularity * 0.35 + coverage * 0.15 + lineCountScore * 0.15,
+    vertical.regularity * 0.33 + horizontal.regularity * 0.33 + coverage * 0.12 + lineCountScore * 0.12 + Math.min(1, areaRatio / 0.35) * 0.1,
   ) * 100) / 100;
 
   return {
@@ -217,6 +209,32 @@ function detectAxisAlignedGridFromRaster(raster: Raster): {
     ],
     message: `Detected ${vertical.positions.length - 1} x ${horizontal.positions.length - 1} axis-aligned grid from regular line spacing.`,
   };
+}
+
+function thinLineScores(gray: Float32Array, width: number, height: number): {
+  columnScores: Float64Array;
+  rowScores: Float64Array;
+} {
+  const columnScores = new Float64Array(width);
+  const rowScores = new Float64Array(height);
+
+  for (let y = 4; y < height - 4; y += 1) {
+    for (let x = 4; x < width - 4; x += 1) {
+      const center = gray[y * width + x];
+      const leftRight = (gray[y * width + x - 3] + gray[y * width + x + 3]) / 2;
+      const upDown = (gray[(y - 3) * width + x] + gray[(y + 3) * width + x]) / 2;
+      const darkness = Math.max(0, 220 - center);
+
+      columnScores[x] += Math.min(40, darkness, thinContrast(center, leftRight));
+      rowScores[y] += Math.min(40, darkness, thinContrast(center, upDown));
+    }
+  }
+
+  return { columnScores, rowScores };
+}
+
+function thinContrast(center: number, surrounds: number): number {
+  return Math.max(0, Math.abs(center - surrounds) - 3);
 }
 
 function detectGridFromHough(
@@ -417,9 +435,9 @@ function grayscale(raster: Raster): Float32Array {
   return gray;
 }
 
-function findScorePeaks(scores: Float64Array): number[] {
+function findScorePeaks(scores: Float64Array, thresholdRatio = 0.34): number[] {
   const max = scores.reduce((value, score) => Math.max(value, score), 0);
-  const threshold = max * 0.34;
+  const threshold = max * thresholdRatio;
   const peaks: number[] = [];
   let start: number | null = null;
   let weightedSum = 0;
