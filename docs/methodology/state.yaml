@@ -34,10 +34,11 @@
   "deferred_lanes": {
     "architecture_audits": "Deferred until software architecture exists beyond docs.",
     "ui_scout": "Deferred until the Story 001 browser workbench survives a physical pass; a browser UI exists but is not stable product UI.",
-    "eval_golden": "Basic homography and browser smoke checks exist for the Story 001 workbench; golden evals are deferred until real hardware measurements or stable calibration flows.",
+    "eval_golden": "Labeled false-input fixture benchmark and Story 003 calibration-candidate discovery harness are present for detector guardrails; real-camera and physical-projection goldens are deferred until hardware measurements exist.",
     "codebase_improvement": "Absent until there is enough code for a scan.",
     "local_runtime_launcher": "Present for the Story 001 browser workbench: npm local:* commands use Conductor's rpg-map-projector port allocation. Future gateway/API services can extend the allocation after the physical proof identifies real service boundaries.",
-    "remote_server": "Expected after MVP for storage/auth/sync, but explicitly outside the first physical proof."
+    "remote_server": "Expected after MVP for storage/auth/sync, but explicitly outside the first physical proof.",
+    "active_projector_camera_calibration": "Preserved as Story 004 and Scout 003. Deferred until projector/camera hardware exists or Story 001 needs a projector-pixels-to-camera/table transform proof; current active work remains printed battle-mat grid detection."
   },
   "supporting_surfaces": {
     "scout": "present",

@@ -29,6 +29,7 @@ The current Story 001 prototype is a local browser workbench:
 - controller view: `http://127.0.0.1:5178/`
 - projector view: `http://127.0.0.1:5178/projector.html`
 - fixture labeler: `http://127.0.0.1:5178/labeler.html`
+- fixture benchmark: `http://127.0.0.1:5178/benchmark.html`
 - optional false camera inputs can be placed in `input/map-pix/`; this folder is ignored by git because the local test photos may be third-party sales images.
 - benchmark grid labels are saved to `input/map-grid-labels.json` from the fixture labeler.
 
@@ -38,6 +39,22 @@ Run it with:
 npm install
 npm run local:app
 ```
+
+Run the local labeled-fixture detector benchmark with:
+
+```bash
+npm run benchmark:fixtures
+```
+
+The benchmark requires the ignored local source images in `input/map-pix/` and writes reports plus overlay images to `test-results/story-002-fixture-benchmark/`.
+
+Run the broader calibration-algorithm discovery benchmark with:
+
+```bash
+npm run benchmark:calibration-discovery
+```
+
+That command uses the same labeled fixtures but writes Story 003 candidate-comparison artifacts to `test-results/story-003-calibration-discovery/`.
 
 The local launcher reads Conductor's port allocation from
 `/Users/cam/Documents/Projects/conductor/local-dev-ports.json`. The primary
@@ -53,6 +70,9 @@ default.
 - [docs/spec.md](docs/spec.md) distills the product spec from the seed.
 - [docs/assumptions.md](docs/assumptions.md) tracks early hardware and feasibility assumptions.
 - [docs/stories/story-001-calibration-projection-spike.md](docs/stories/story-001-calibration-projection-spike.md) defines the first proof story.
+- [docs/stories/story-002-labeled-fixture-detector-benchmark.md](docs/stories/story-002-labeled-fixture-detector-benchmark.md) defines the labeled-fixture detector benchmark.
+- [docs/stories/story-003-calibration-algorithm-discovery-evaluation.md](docs/stories/story-003-calibration-algorithm-discovery-evaluation.md) defines the calibration algorithm discovery loop.
+- [docs/evals/calibration-algorithm-discovery.md](docs/evals/calibration-algorithm-discovery.md) tracks the candidate matrix and shared scorecard.
 - [docs/scout.md](docs/scout.md) indexes external research and hardware/library scouting.
 - [docs/decisions/README.md](docs/decisions/README.md) describes ADRs for hard-to-reverse choices.
 

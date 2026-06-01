@@ -38,12 +38,31 @@ Test three calibration modes against the existing `input/map-pix/` fixtures and 
 
 Success should be measured by physical error, setup time, and failure mode clarity, not by a confidence score alone.
 
+## Goal 1 Algorithm Update - 2026-05-30
+
+The current goal 1 evidence says a geometry-first lattice solver is still the right passive/AI-assisted shape: generated masks or local CV should supply candidate lines/intersections, but deterministic code should own integer grid assignment, robust acceptance, and refusal.
+
+Candidate techniques worth adapting before a new broad model search:
+
+| Technique | Product Fit | Follow-Up |
+|---|---|---|
+| Camera undistortion prepass | Real mat photos show lens/curl symptoms where local mesh alignment beats a single homography. OpenCV camera calibration/undistortion should be tested before judging edge residuals as grid-detection failures. | Add a camera-profile input to the benchmark once a fixed camera is chosen. |
+| Integer-lattice RANSAC/USAC | The problem is repeated integer grid coordinates mapped into image space. Robust homography/lattice consensus matches that better than contour-first outline picking. | Continue evolving `scripts/ai-dot-lattice-fit.py`; keep labels out of selection and score against fixtures only after fitting. |
+| Observed local mesh after global homography | On curled/distorted photos, adjacent observed intersections can follow the real visible grid better than one global homography. | Export observed inlier mesh as correction evidence; do not use it to rescue bad global fits without strict gates. |
+| OpenCV KNN neighbor lookup | The current integer-lattice fitter only needs local nearest neighbors, not full all-pairs matrices. | Use dependency-light OpenCV KNN for nearest-neighbor and edge-candidate lookup; preserve the existing 12-neighbor contract before trying radius-based graph expansion. |
+| Streaming evidence acceptance | If API calls are already launched in parallel, the fastest table path may be accepting the first safe geometry rather than waiting for every sample. | Keep launched-call cost explicit; use only after live runs prove background completion does not confuse the session. |
+| Two line-family/vanishing-point fitting | Battle mats are two projective line pencils, including off-image corners. | Keep as a line-only challenger, but current AI line masks are not stable enough to replace dot consensus. |
+| Partial-grid topology completion | The app often sees only a patch of the grid. Completing missing/off-image cells can help manual correction. | Use only after strong inlier support; never infer full mat extent without dimensions, border evidence, or manual confirmation. |
+| Learned line detectors | DeepLSD, M-LSD, or SOLD2 might recover weak lines under poor lighting. | Defer until OpenCV/AI-mask evidence proves the local extractor is the bottleneck; they add runtime complexity and still need the same lattice scorer. |
+
+The active projector-camera/fiducial branch remains Story 004. These goal 1 techniques are about detecting the printed mat grid in camera/photos, not calibrating projector pixels to the table.
+
 ## Product Fit
 
 - Ideal refs: Calibration Is Product Core, Speed Over Polish, Physical Table First, Robust Manual Control
 - Spec refs: `spec:2`, `spec:3.1`, `spec:5.1`, `spec:6.1`, `spec:7.1`
 - Story refs: `story-001-calibration-projection-spike`
-- ADR refs: None yet. Create one if adopting a non-browser CV runtime or fiducial-based calibration architecture as a durable dependency.
+- ADR refs: [ADR-001](../decisions/adr-001-calibration-architecture.md) adopts layered camera, rig, and session calibration. Create a follow-up ADR if adopting a non-browser CV runtime or fiducial implementation as a durable dependency.
 
 ## Risks And Open Questions
 

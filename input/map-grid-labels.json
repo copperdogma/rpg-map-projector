@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updatedAt": "2026-05-28T23:02:14.057Z",
+  "updatedAt": "2026-05-30T03:53:01.206Z",
   "labels": [
     {
       "sourceId": "generated-test-mat",
@@ -361,6 +361,246 @@
       "rows": 22,
       "benchmark": true,
       "labeledAt": "2026-05-28T23:01:59.252Z"
+    },
+    {
+      "sourceId": "real-map-home-IMG_9715.jpg",
+      "sourceName": "Real home mat photo 1",
+      "sourceUrl": "/input/map-pix/real-map-home-IMG_9715.jpg",
+      "note": "real-map-home-IMG_9715.jpg",
+      "imageWidth": 4284,
+      "imageHeight": 5712,
+      "corners": [
+        {
+          "x": 855.0186728395067,
+          "y": 1141.614012345679
+        },
+        {
+          "x": 3792.552037037038,
+          "y": 1319.2178395061728
+        },
+        {
+          "x": 5322.240393171902,
+          "y": 5444.120130690587
+        },
+        {
+          "x": -2010.6188580246903,
+          "y": 4657.975864197531
+        }
+      ],
+      "columns": 32,
+      "rows": 41,
+      "benchmark": true,
+      "labeledAt": "2026-05-29T21:16:51.145Z"
+    },
+    {
+      "sourceId": "real-map-home-IMG_9716.jpg",
+      "sourceName": "Real home mat photo 2",
+      "sourceUrl": "/input/map-pix/real-map-home-IMG_9716.jpg",
+      "note": "real-map-home-IMG_9716.jpg",
+      "imageWidth": 4284,
+      "imageHeight": 5712,
+      "corners": [
+        {
+          "x": 127.24231377233184,
+          "y": 723.5003960389009
+        },
+        {
+          "x": 3725.605685626857,
+          "y": 879.8945596439553
+        },
+        {
+          "x": 5884.297762185666,
+          "y": 4088.1685491365834
+        },
+        {
+          "x": -2598.879119851265,
+          "y": 3907.3052709559074
+        }
+      ],
+      "columns": 32,
+      "rows": 32,
+      "benchmark": true,
+      "labeledAt": "2026-05-29T23:48:51.824Z"
+    },
+    {
+      "sourceId": "real-map-home-IMG_9717.jpg",
+      "sourceName": "Real home mat photo 3",
+      "sourceUrl": "/input/map-pix/real-map-home-IMG_9717.jpg",
+      "note": "real-map-home-IMG_9717.jpg",
+      "imageWidth": 4284,
+      "imageHeight": 5712,
+      "corners": [
+        {
+          "x": -1978.584515212233,
+          "y": 992.9486118902114
+        },
+        {
+          "x": 1930.7878271121785,
+          "y": 278.9899130574473
+        },
+        {
+          "x": 6051.5353941478625,
+          "y": 3222.2108581370653
+        },
+        {
+          "x": 672.1375554435003,
+          "y": 9200.961639259342
+        }
+      ],
+      "columns": 28,
+      "rows": 37,
+      "benchmark": true,
+      "labeledAt": "2026-05-30T02:55:22.671Z"
+    },
+    {
+      "sourceId": "real-map-home-IMG_9718.jpg",
+      "sourceName": "Real home mat photo 4",
+      "sourceUrl": "/input/map-pix/real-map-home-IMG_9718.jpg",
+      "note": "real-map-home-IMG_9718.jpg",
+      "imageWidth": 4284,
+      "imageHeight": 5712,
+      "corners": [
+        {
+          "x": -355.1956086646128,
+          "y": 765.6578007584441
+        },
+        {
+          "x": 3153.698391393443,
+          "y": 373.81641393442624
+        },
+        {
+          "x": 6565.582895761708,
+          "y": 3775.26211315596
+        },
+        {
+          "x": -436.1540951765819,
+          "y": 6518.527366051205
+        }
+      ],
+      "columns": 28,
+      "rows": 33,
+      "benchmark": true,
+      "labeledAt": "2026-05-30T02:59:14.024Z"
+    },
+    {
+      "sourceId": "real-map-home-IMG_9719.jpg",
+      "sourceName": "Real home mat photo 5",
+      "sourceUrl": "/input/map-pix/real-map-home-IMG_9719.jpg",
+      "note": "real-map-home-IMG_9719.jpg",
+      "imageWidth": 4284,
+      "imageHeight": 5712,
+      "corners": [
+        {
+          "x": -424.0158753218649,
+          "y": 1209.9549225247956
+        },
+        {
+          "x": 2658.18416191287,
+          "y": 744.5785615794794
+        },
+        {
+          "x": 5746.986118747424,
+          "y": 2533.646621999138
+        },
+        {
+          "x": -280.0872339328017,
+          "y": 4985.184416744883
+        }
+      ],
+      "columns": 29,
+      "rows": 33,
+      "benchmark": true,
+      "labeledAt": "2026-05-30T03:04:42.087Z"
+    },
+    {
+      "sourceId": "real-map-home-IMG_9720.jpg",
+      "sourceName": "Real home mat photo 6",
+      "sourceUrl": "/input/map-pix/real-map-home-IMG_9720.jpg",
+      "note": "real-map-home-IMG_9720.jpg",
+      "imageWidth": 4284,
+      "imageHeight": 5712,
+      "corners": [
+        {
+          "x": 303.8718475566399,
+          "y": 1058.7164449242941
+        },
+        {
+          "x": 3499.2981433806426,
+          "y": 1041.668853749319
+        },
+        {
+          "x": 6516.119993285896,
+          "y": 4910.93527488232
+        },
+        {
+          "x": -2023.8424835128098,
+          "y": 5972.02716545993
+        }
+      ],
+      "columns": 32,
+      "rows": 39,
+      "benchmark": true,
+      "labeledAt": "2026-05-30T03:11:18.280Z"
+    },
+    {
+      "sourceId": "real-map-home-IMG_9721.jpg",
+      "sourceName": "Real home mat photo 7",
+      "sourceUrl": "/input/map-pix/real-map-home-IMG_9721.jpg",
+      "note": "real-map-home-IMG_9721.jpg",
+      "imageWidth": 4284,
+      "imageHeight": 5712,
+      "corners": [
+        {
+          "x": 1614.5593821047667,
+          "y": 1056.2498521748712
+        },
+        {
+          "x": 4704.609897115908,
+          "y": 1668.6693470294351
+        },
+        {
+          "x": 3852.4706379659706,
+          "y": 6529.950610449294
+        },
+        {
+          "x": -2029.1064731135534,
+          "y": 3144.26318243202
+        }
+      ],
+      "columns": 29,
+      "rows": 34,
+      "benchmark": true,
+      "labeledAt": "2026-05-30T03:27:21.407Z"
+    },
+    {
+      "sourceId": "real-map-home-IMG_9722.jpg",
+      "sourceName": "Real home mat photo 8",
+      "sourceUrl": "/input/map-pix/real-map-home-IMG_9722.jpg",
+      "note": "real-map-home-IMG_9722.jpg",
+      "imageWidth": 4284,
+      "imageHeight": 5712,
+      "corners": [
+        {
+          "x": 20.389802619671002,
+          "y": 686.3801748542355
+        },
+        {
+          "x": 3566.5614409851587,
+          "y": 377.52132840748595
+        },
+        {
+          "x": 5697.866615691693,
+          "y": 4363.987320615712
+        },
+        {
+          "x": -329.79421613452257,
+          "y": 5641.353781364875
+        }
+      ],
+      "columns": 22,
+      "rows": 25,
+      "benchmark": true,
+      "labeledAt": "2026-05-30T03:52:58.021Z"
     }
   ]
 }

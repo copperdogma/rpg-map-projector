@@ -18,6 +18,17 @@ const LOCAL_FIXTURE_FILES = [
   's-l1600.webp',
 ];
 
+const REAL_HOME_FIXTURE_FILES = [
+  'real-map-home-IMG_9715.jpg',
+  'real-map-home-IMG_9716.jpg',
+  'real-map-home-IMG_9717.jpg',
+  'real-map-home-IMG_9718.jpg',
+  'real-map-home-IMG_9719.jpg',
+  'real-map-home-IMG_9720.jpg',
+  'real-map-home-IMG_9721.jpg',
+  'real-map-home-IMG_9722.jpg',
+];
+
 export const sampleImages: SampleImage[] = [
   {
     label: 'Generated test mat',
@@ -26,6 +37,11 @@ export const sampleImages: SampleImage[] = [
   },
   ...LOCAL_FIXTURE_FILES.map((filename, index) => ({
     label: `Local mat photo ${index + 1}`,
+    url: `/input/map-pix/${encodeURI(filename)}`,
+    note: filename,
+  })),
+  ...REAL_HOME_FIXTURE_FILES.map((filename, index) => ({
+    label: `Real home mat photo ${index + 1}`,
     url: `/input/map-pix/${encodeURI(filename)}`,
     note: filename,
   })),

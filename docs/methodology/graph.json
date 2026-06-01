@@ -62,9 +62,30 @@
         },
         "story_ids": [
           "001",
-          "002"
+          "002",
+          "003",
+          "004"
         ],
-        "eval_ids": []
+        "eval_ids": [
+          "eval:calibration-algorithm-discovery",
+          "eval:opencv-calibration-discovery",
+          "eval:opencv-real-home-dry-run",
+          "eval:opencv-real-home-scored",
+          "eval:ai-grid-current",
+          "eval:ai-grid-hybrid-summary",
+          "eval:ai-grid-hybrid-prompt-ensemble-summary",
+          "eval:ai-grid-frame-summary",
+          "eval:ai-grid-line-first-current",
+          "eval:ai-grid-parallel-current",
+          "eval:ai-grid-parallel-hybrid",
+          "eval:ai-line-junction",
+          "eval:ai-line-lattice",
+          "eval:ai-line-skeleton",
+          "eval:ai-line-graph",
+          "eval:ai-family-stripes",
+          "eval:ai-family-pair",
+          "eval:active-fiducial-sim"
+        ]
       },
       {
         "id": "spec:3",
@@ -138,9 +159,29 @@
           "last_reviewed": "2026-05-27"
         },
         "story_ids": [
-          "002"
+          "002",
+          "003"
         ],
-        "eval_ids": []
+        "eval_ids": [
+          "eval:fixture-grid-detection",
+          "eval:calibration-algorithm-discovery",
+          "eval:opencv-calibration-discovery",
+          "eval:opencv-real-home-dry-run",
+          "eval:opencv-real-home-scored",
+          "eval:ai-grid-current",
+          "eval:ai-grid-hybrid-summary",
+          "eval:ai-grid-hybrid-prompt-ensemble-summary",
+          "eval:ai-grid-frame-summary",
+          "eval:ai-grid-line-first-current",
+          "eval:ai-grid-parallel-current",
+          "eval:ai-grid-parallel-hybrid",
+          "eval:ai-line-junction",
+          "eval:ai-line-lattice",
+          "eval:ai-line-skeleton",
+          "eval:ai-line-graph",
+          "eval:ai-family-stripes",
+          "eval:ai-family-pair"
+        ]
       },
       {
         "id": "spec:6",
@@ -165,9 +206,31 @@
         },
         "story_ids": [
           "001",
-          "002"
+          "002",
+          "003",
+          "004"
         ],
-        "eval_ids": []
+        "eval_ids": [
+          "eval:fixture-grid-detection",
+          "eval:calibration-algorithm-discovery",
+          "eval:opencv-calibration-discovery",
+          "eval:opencv-real-home-dry-run",
+          "eval:opencv-real-home-scored",
+          "eval:ai-grid-current",
+          "eval:ai-grid-hybrid-summary",
+          "eval:ai-grid-hybrid-prompt-ensemble-summary",
+          "eval:ai-grid-frame-summary",
+          "eval:ai-grid-line-first-current",
+          "eval:ai-grid-parallel-current",
+          "eval:ai-grid-parallel-hybrid",
+          "eval:ai-line-junction",
+          "eval:ai-line-lattice",
+          "eval:ai-line-skeleton",
+          "eval:ai-line-graph",
+          "eval:ai-family-stripes",
+          "eval:ai-family-pair",
+          "eval:active-fiducial-sim"
+        ]
       },
       {
         "id": "spec:7",
@@ -192,9 +255,31 @@
         },
         "story_ids": [
           "001",
-          "002"
+          "002",
+          "003",
+          "004"
         ],
-        "eval_ids": []
+        "eval_ids": [
+          "eval:fixture-grid-detection",
+          "eval:calibration-algorithm-discovery",
+          "eval:opencv-calibration-discovery",
+          "eval:opencv-real-home-dry-run",
+          "eval:opencv-real-home-scored",
+          "eval:ai-grid-current",
+          "eval:ai-grid-hybrid-summary",
+          "eval:ai-grid-hybrid-prompt-ensemble-summary",
+          "eval:ai-grid-frame-summary",
+          "eval:ai-grid-line-first-current",
+          "eval:ai-grid-parallel-current",
+          "eval:ai-grid-parallel-hybrid",
+          "eval:ai-line-junction",
+          "eval:ai-line-lattice",
+          "eval:ai-line-skeleton",
+          "eval:ai-line-graph",
+          "eval:ai-family-stripes",
+          "eval:ai-family-pair",
+          "eval:active-fiducial-sim"
+        ]
       }
     ],
     "compromises": [
@@ -230,7 +315,9 @@
         },
         "story_ids": [
           "001",
-          "002"
+          "002",
+          "003",
+          "004"
         ]
       },
       {
@@ -273,7 +360,9 @@
         },
         "story_ids": [
           "001",
-          "002"
+          "002",
+          "003",
+          "004"
         ]
       }
     ]
@@ -356,10 +445,11 @@
     "deferred_lanes": {
       "architecture_audits": "Deferred until software architecture exists beyond docs.",
       "ui_scout": "Deferred until the Story 001 browser workbench survives a physical pass; a browser UI exists but is not stable product UI.",
-      "eval_golden": "Basic homography and browser smoke checks exist for the Story 001 workbench; golden evals are deferred until real hardware measurements or stable calibration flows.",
+      "eval_golden": "Labeled false-input fixture benchmark and Story 003 calibration-candidate discovery harness are present for detector guardrails; real-camera and physical-projection goldens are deferred until hardware measurements exist.",
       "codebase_improvement": "Absent until there is enough code for a scan.",
       "local_runtime_launcher": "Present for the Story 001 browser workbench: npm local:* commands use Conductor's rpg-map-projector port allocation. Future gateway/API services can extend the allocation after the physical proof identifies real service boundaries.",
-      "remote_server": "Expected after MVP for storage/auth/sync, but explicitly outside the first physical proof."
+      "remote_server": "Expected after MVP for storage/auth/sync, but explicitly outside the first physical proof.",
+      "active_projector_camera_calibration": "Preserved as Story 004 and Scout 003. Deferred until projector/camera hardware exists or Story 001 needs a projector-pixels-to-camera/table transform proof; current active work remains printed battle-mat grid detection."
     },
     "supporting_surfaces": {
       "scout": "present",
@@ -400,7 +490,7 @@
       "id": "002",
       "title": "Labeled Fixture Detector Benchmark",
       "path": "docs/stories/story-002-labeled-fixture-detector-benchmark.md",
-      "status": "Pending",
+      "status": "Done",
       "priority": "High",
       "origin": "Story 001 produced a labeled false-input set. The next calibration step needs a bounded scoring harness before more detector tuning or library adoption.",
       "ideal_refs": [
@@ -422,9 +512,92 @@
         "B3",
         "B7"
       ]
+    },
+    {
+      "id": "003",
+      "title": "Calibration Algorithm Discovery And Evaluation",
+      "path": "docs/stories/story-003-calibration-algorithm-discovery-evaluation.md",
+      "status": "Done",
+      "priority": "High",
+      "origin": "Story 002 made passive grid detection measurable and safe but weak. The next step is a broader discovery loop that researches, implements, and evaluates multiple calibration approaches before real-camera expansion.",
+      "ideal_refs": [
+        "docs/ideal.md"
+      ],
+      "spec_refs": [
+        "spec:2.1",
+        "spec:5.1",
+        "spec:6.1",
+        "spec:7.1"
+      ],
+      "depends_on": [
+        "002"
+      ],
+      "category_refs": [
+        "spec:2",
+        "spec:5",
+        "spec:6",
+        "spec:7"
+      ],
+      "compromise_refs": [
+        "B3",
+        "B7"
+      ]
+    },
+    {
+      "id": "004",
+      "title": "Active Projector-Camera Calibration Pattern Spike",
+      "path": "docs/stories/story-004-active-projector-camera-calibration-pattern-spike.md",
+      "status": "Draft",
+      "priority": "High",
+      "origin": "Projection-mapping scouting and synthetic active-calibration experiments found a promising one-frame projected fiducial/circle pattern, but the current active work must return to printed mat-grid detection. Preserve the active-calibration branch as a deferred hardware spike so it is not lost.",
+      "ideal_refs": [
+        "docs/ideal.md"
+      ],
+      "spec_refs": [
+        "spec:2.1",
+        "spec:6.1",
+        "spec:7.1"
+      ],
+      "depends_on": [
+        "001"
+      ],
+      "category_refs": [
+        "spec:2",
+        "spec:6",
+        "spec:7"
+      ],
+      "compromise_refs": [
+        "B3",
+        "B7"
+      ]
     }
   ],
-  "adrs": [],
+  "adrs": [
+    {
+      "id": "ADR-001",
+      "title": "Layered Calibration Architecture",
+      "path": "docs/decisions/adr-001-calibration-architecture.md",
+      "status": "Accepted",
+      "spec_refs": [
+        "spec:6",
+        "spec:6.1"
+      ],
+      "compromise_refs": []
+    },
+    {
+      "id": "ADR-002",
+      "title": "Grid Detection Alignment Frame",
+      "path": "docs/decisions/adr-002-grid-detection-alignment-frame.md",
+      "status": "Accepted",
+      "spec_refs": [
+        "spec:2.1",
+        "spec:5.1",
+        "spec:6.1",
+        "spec:7.1"
+      ],
+      "compromise_refs": []
+    }
+  ],
   "scouts": [
     {
       "id": "001",
@@ -453,9 +626,470 @@
         "spec:6.1",
         "spec:7.1"
       ]
+    },
+    {
+      "id": "003",
+      "title": "Projection Mapping Calibration Techniques",
+      "path": "docs/scout/scout-003-projection-mapping-calibration-techniques.md",
+      "status": "Filed",
+      "spec_refs": [
+        "spec:2",
+        "spec:3.1",
+        "spec:5.1",
+        "spec:6.1",
+        "spec:7.1"
+      ]
     }
   ],
-  "evals": [],
+  "evals": [
+    {
+      "id": "eval:fixture-grid-detection",
+      "title": "Labeled Fixture Grid Detection Benchmark",
+      "status": "local",
+      "story_refs": [
+        "002"
+      ],
+      "spec_refs": [
+        "spec:5.1",
+        "spec:6.1",
+        "spec:7.1"
+      ],
+      "category_refs": [
+        "spec:5",
+        "spec:6",
+        "spec:7"
+      ],
+      "command": "npm run benchmark:fixtures",
+      "artifacts": "test-results/story-002-fixture-benchmark/",
+      "notes": "Requires the ignored local source images in input/map-pix/. Uses committed labels from input/map-grid-labels.json."
+    },
+    {
+      "id": "eval:calibration-algorithm-discovery",
+      "title": "Calibration Algorithm Discovery Benchmark",
+      "status": "local",
+      "story_refs": [
+        "003"
+      ],
+      "spec_refs": [
+        "spec:2.1",
+        "spec:5.1",
+        "spec:6.1",
+        "spec:7.1"
+      ],
+      "category_refs": [
+        "spec:2",
+        "spec:5",
+        "spec:6",
+        "spec:7"
+      ],
+      "command": "npm run benchmark:calibration-discovery",
+      "artifacts": "test-results/story-003-calibration-discovery/",
+      "notes": "Runs implemented detector candidates through the shared fixture scorecard. Planned candidates are documented in docs/evals/calibration-algorithm-discovery.md."
+    },
+    {
+      "id": "eval:opencv-calibration-discovery",
+      "title": "Gateway OpenCV Calibration Candidate Benchmark",
+      "status": "local",
+      "story_refs": [
+        "003"
+      ],
+      "spec_refs": [
+        "spec:2.1",
+        "spec:5.1",
+        "spec:6.1",
+        "spec:7.1"
+      ],
+      "category_refs": [
+        "spec:2",
+        "spec:5",
+        "spec:6",
+        "spec:7"
+      ],
+      "command": "npm run benchmark:opencv-discovery",
+      "artifacts": "test-results/story-003-opencv-discovery/",
+      "notes": "Runs the Python/OpenCV gateway-side boundary lattice candidate through the strict scorecard. Current reporting separates original sales-photo fixtures from later real-home proxy labels. Uses uv to supply OpenCV, Pillow, and NumPy without committing a Python environment."
+    },
+    {
+      "id": "eval:opencv-real-home-dry-run",
+      "title": "Gateway OpenCV Real-Home Unlabeled Dry Run",
+      "status": "local",
+      "story_refs": [
+        "001"
+      ],
+      "spec_refs": [
+        "spec:2.1",
+        "spec:5.1",
+        "spec:6.1",
+        "spec:7.1"
+      ],
+      "category_refs": [
+        "spec:2",
+        "spec:5",
+        "spec:6",
+        "spec:7"
+      ],
+      "command": "npm run detect:opencv-real-home",
+      "artifacts": "test-results/story-001-real-home-opencv-dry-run/",
+      "notes": "Runs the current Python/OpenCV candidate over unlabeled real-home mat photos and writes visual overlays only. It cannot score accuracy until labels are saved."
+    },
+    {
+      "id": "eval:opencv-real-home-scored",
+      "title": "Gateway OpenCV Real-Home Scored Benchmark",
+      "status": "local",
+      "story_refs": [
+        "001"
+      ],
+      "spec_refs": [
+        "spec:2.1",
+        "spec:5.1",
+        "spec:6.1",
+        "spec:7.1"
+      ],
+      "category_refs": [
+        "spec:2",
+        "spec:5",
+        "spec:6",
+        "spec:7"
+      ],
+      "command": "npm run benchmark:opencv-real-home",
+      "artifacts": "test-results/story-001-real-home-opencv-scored/",
+      "notes": "Runs the current Python/OpenCV candidate over the manually labeled real-home mat photos. Strict corner/row/column scores are useful regression data, but real-camera promotion also needs usable-region and interior-lattice interpretation."
+    },
+    {
+      "id": "eval:ai-grid-current",
+      "title": "Optional AI Grid Evidence Current Recipe",
+      "status": "local",
+      "story_refs": [
+        "001",
+        "003"
+      ],
+      "spec_refs": [
+        "spec:2.1",
+        "spec:5.1",
+        "spec:6.1",
+        "spec:7.1"
+      ],
+      "category_refs": [
+        "spec:2",
+        "spec:5",
+        "spec:6",
+        "spec:7"
+      ],
+      "command": "npm run benchmark:ai-grid-current",
+      "artifacts": "test-results/ai-dot-lattice-fit-selected-v2/",
+      "notes": "Re-scores the current optional remote AI evidence artifacts: Grok white-line masks plus adaptive dots-only samples parsed by the deterministic dot-lattice fitter. See docs/evals/ai-grid-current-recipe.md."
+    },
+    {
+      "id": "eval:ai-grid-hybrid-summary",
+      "title": "Optional AI Grid Evidence Hybrid Summary",
+      "status": "local",
+      "story_refs": [
+        "001",
+        "003"
+      ],
+      "spec_refs": [
+        "spec:2.1",
+        "spec:5.1",
+        "spec:6.1",
+        "spec:7.1"
+      ],
+      "category_refs": [
+        "spec:2",
+        "spec:5",
+        "spec:6",
+        "spec:7"
+      ],
+      "command": "npm run benchmark:ai-grid-hybrid-summary",
+      "artifacts": "test-results/ai-grid-hybrid-summary-v1/",
+      "notes": "Report-only no-label hybrid over the current dot-consensus and line-graph reports. Current accuracy result chooses line-graph for 6 real-home fixtures and dot-consensus for 2, with selected-line mean/min 99.393%/95.964%. The line-first speed model preserves the same score while modeling dot-consensus fallback on only 1 of 8 fixtures. It is not runtime promotion proof until the gate is verified on a larger real-photo corpus."
+    },
+    {
+      "id": "eval:ai-grid-hybrid-prompt-ensemble-summary",
+      "title": "Optional AI Grid Evidence Prompt Ensemble Hybrid Summary",
+      "status": "local",
+      "story_refs": [
+        "001",
+        "003"
+      ],
+      "spec_refs": [
+        "spec:2.1",
+        "spec:5.1",
+        "spec:6.1",
+        "spec:7.1"
+      ],
+      "category_refs": [
+        "spec:2",
+        "spec:5",
+        "spec:6",
+        "spec:7"
+      ],
+      "command": "npm run benchmark:ai-grid-hybrid-prompt-ensemble-summary",
+      "artifacts": "test-results/ai-grid-hybrid-prompt-ensemble-summary-v1/",
+      "notes": "Report-only no-label hybrid that lets short solid-line and larger-input line retries replace the default line graph only when local graph density, node fill, conflict, span, and score gates support it. Current replay improves selected-line mean/min to 99.973%/99.882% on 8 real-home fixtures, with 6 line-graph and 2 dot-consensus choices. It is not runtime promotion proof until the prompt/input ensemble gate is verified on a larger real-photo corpus."
+    },
+    {
+      "id": "eval:ai-grid-frame-summary",
+      "title": "Optional AI Grid Bounded Frame Summary",
+      "status": "local",
+      "story_refs": [
+        "001",
+        "003"
+      ],
+      "spec_refs": [
+        "spec:2.1",
+        "spec:5.1",
+        "spec:6.1",
+        "spec:7.1"
+      ],
+      "category_refs": [
+        "spec:2",
+        "spec:5",
+        "spec:6",
+        "spec:7"
+      ],
+      "command": "npm run benchmark:ai-grid-frame-summary",
+      "artifacts": "test-results/ai-grid-frame-summary-v1/",
+      "notes": "Report-only comparison for the product pivot from boundary-seeking grid extent to grid-as-alignment-frame, now recorded in ADR-002. It preserves the selected prompt-ensemble homography, expands the grid to the source image with a 100x100 cap, trims edge bands below 10% sampled source-photo overlap, and compares visible human-label intersection coverage against the old supported extents. Current real-home replay improves mean/min coverage from 27.393%/10.727% to 99.95%/99.598%, with all frame seeds inside the cap."
+    },
+    {
+      "id": "eval:ai-grid-line-first-current",
+      "title": "Optional AI Grid Evidence Live Line-First Runner",
+      "status": "local",
+      "story_refs": [
+        "001",
+        "003"
+      ],
+      "spec_refs": [
+        "spec:2.1",
+        "spec:5.1",
+        "spec:6.1",
+        "spec:7.1"
+      ],
+      "category_refs": [
+        "spec:2",
+        "spec:5",
+        "spec:6",
+        "spec:7"
+      ],
+      "command": "npm run benchmark:ai-grid-line-first-current",
+      "artifacts": "test-results/ai-grid-line-first-current/",
+      "notes": "Live measurement runner for the report-only line-first idea. It generates one or more line masks, parses them with the observed graph, and launches dot fallback only when the line graph is not accepted/trusted. Initial live hard-case runs show useful accuracy but no speed promotion: fallback serializes after line generation, and multiple parallel line samples were slow."
+    },
+    {
+      "id": "eval:ai-grid-parallel-current",
+      "title": "Optional AI Grid Evidence Parallel Runner",
+      "status": "local",
+      "story_refs": [
+        "001",
+        "003"
+      ],
+      "spec_refs": [
+        "spec:2.1",
+        "spec:5.1",
+        "spec:6.1",
+        "spec:7.1"
+      ],
+      "category_refs": [
+        "spec:2",
+        "spec:5",
+        "spec:6",
+        "spec:7"
+      ],
+      "command": "npm run benchmark:ai-grid-parallel-current",
+      "artifacts": "test-results/ai-grid-parallel-current/",
+      "notes": "Runs the current Grok white-line plus parallel dot retry recipe with live API calls for a single source image, then scores with the deterministic dot-lattice fitter. Supports custom dot-wave schedules such as --waves 2,1,2. This measures real wall-clock behavior rather than replaying old artifact timings."
+    },
+    {
+      "id": "eval:ai-grid-parallel-hybrid",
+      "title": "Optional AI Grid Evidence Hybrid Parallel Runner",
+      "status": "local",
+      "story_refs": [
+        "001",
+        "003"
+      ],
+      "spec_refs": [
+        "spec:2.1",
+        "spec:5.1",
+        "spec:6.1",
+        "spec:7.1"
+      ],
+      "category_refs": [
+        "spec:2",
+        "spec:5",
+        "spec:6",
+        "spec:7"
+      ],
+      "command": "npm run benchmark:ai-grid-parallel-hybrid",
+      "artifacts": "test-results/ai-grid-parallel-current/",
+      "notes": "Experimental live runner policy: launches the white-line mask plus two dot samples, lets the skeletonized line-mask parser accept only when dot consensus has not accepted, and otherwise launches a three-dot fallback wave. Replay estimates are promising for economy mode, but the first live check did not beat the current speed default."
+    },
+    {
+      "id": "eval:ai-line-junction",
+      "title": "AI White-Line Junction Probe",
+      "status": "local",
+      "story_refs": [
+        "001",
+        "003"
+      ],
+      "spec_refs": [
+        "spec:2.1",
+        "spec:5.1",
+        "spec:6.1",
+        "spec:7.1"
+      ],
+      "category_refs": [
+        "spec:2",
+        "spec:5",
+        "spec:6",
+        "spec:7"
+      ],
+      "command": "npm run benchmark:ai-line-junction",
+      "artifacts": "test-results/ai-line-junction-probe-v1/",
+      "notes": "Tests whether a single AI white-line mask can replace AI dots by extracting Harris-style junctions and reusing the deterministic lattice fitter. Current result is candidate/refusal only, not promoted."
+    },
+    {
+      "id": "eval:ai-line-lattice",
+      "title": "AI Ordered Line-Family Lattice Probe",
+      "status": "local",
+      "story_refs": [
+        "001",
+        "003"
+      ],
+      "spec_refs": [
+        "spec:2.1",
+        "spec:5.1",
+        "spec:6.1",
+        "spec:7.1"
+      ],
+      "category_refs": [
+        "spec:2",
+        "spec:5",
+        "spec:6",
+        "spec:7"
+      ],
+      "command": "npm run benchmark:ai-line-lattice",
+      "artifacts": "test-results/ai-line-lattice-ransac-v1/",
+      "notes": "Tests ordered Hough line-family subsets and synthetic intersections from one AI white-line mask. Current result is 2 candidate, 6 refusal, 0 accepted; not promoted."
+    },
+    {
+      "id": "eval:ai-line-skeleton",
+      "title": "AI White-Line Skeleton Junction Probe",
+      "status": "local",
+      "story_refs": [
+        "001",
+        "003"
+      ],
+      "spec_refs": [
+        "spec:2.1",
+        "spec:5.1",
+        "spec:6.1",
+        "spec:7.1"
+      ],
+      "category_refs": [
+        "spec:2",
+        "spec:5",
+        "spec:6",
+        "spec:7"
+      ],
+      "command": "npm run benchmark:ai-line-skeleton",
+      "artifacts": "test-results/ai-line-skeleton-junction-probe-v1/",
+      "notes": "Tests whether a single AI white-line mask can replace AI dots by skeletonizing the line mask, extracting branch-point junctions, and reusing the deterministic dot-lattice fitter. Current result is 4 accepted, 3 candidate, 1 refusal; useful as a no-extra-AI-call helper but not promoted over dot consensus."
+    },
+    {
+      "id": "eval:ai-line-graph",
+      "title": "AI White-Line Observed Graph Probe",
+      "status": "local",
+      "story_refs": [
+        "001",
+        "003"
+      ],
+      "spec_refs": [
+        "spec:2.1",
+        "spec:5.1",
+        "spec:6.1",
+        "spec:7.1"
+      ],
+      "category_refs": [
+        "spec:2",
+        "spec:5",
+        "spec:6",
+        "spec:7"
+      ],
+      "command": "npm run benchmark:ai-line-graph",
+      "artifacts": "test-results/ai-line-graph-lattice-v1/",
+      "notes": "Tests whether a single AI white-line mask can be parsed locally as an observed grid graph: skeleton nodes become intersections, skeleton segments become local mesh edges, and integer coordinates are assigned by graph traversal. Current result is 6 accepted and 2 candidate observed-grid graphs on real-home fixtures, with mean observed-mesh alignment 97.958% and min 89.073%. A report-only grown-extent gate lifts selected-line mean/min to 98.820%/95.413%, but it is not yet runtime projection proof."
+    },
+    {
+      "id": "eval:ai-family-stripes",
+      "title": "AI Single-Family Stripe Mask Probe",
+      "status": "local",
+      "story_refs": [
+        "001",
+        "003"
+      ],
+      "spec_refs": [
+        "spec:2.1",
+        "spec:5.1",
+        "spec:6.1",
+        "spec:7.1"
+      ],
+      "category_refs": [
+        "spec:2",
+        "spec:5",
+        "spec:6",
+        "spec:7"
+      ],
+      "command": "npm run benchmark:ai-family-stripes",
+      "artifacts": "test-results/ai-mask-lattice-probe-family-stripes-v2-full/",
+      "notes": "Scores generated less-steep/more-steep stripe masks as line-family seeds. Current result is 0/16 usable seeds, not promoted."
+    },
+    {
+      "id": "eval:ai-family-pair",
+      "title": "AI Paired Single-Family Lattice Probe",
+      "status": "local",
+      "story_refs": [
+        "001",
+        "003"
+      ],
+      "spec_refs": [
+        "spec:2.1",
+        "spec:5.1",
+        "spec:6.1",
+        "spec:7.1"
+      ],
+      "category_refs": [
+        "spec:2",
+        "spec:5",
+        "spec:6",
+        "spec:7"
+      ],
+      "command": "npm run benchmark:ai-family-pair",
+      "artifacts": "test-results/ai-family-pair-lattice-v1/",
+      "notes": "Directly tests the two-mask line-family idea: one AI image for the less-steep family and one for the more-steep family, then local Hough clusters are intersected. Current result is 1 accepted, 4 candidate, 3 refusal; promising when masks are clean but not promoted over dot consensus."
+    },
+    {
+      "id": "eval:active-fiducial-sim",
+      "title": "Projected Active Calibration Simulation",
+      "status": "local",
+      "story_refs": [
+        "001",
+        "004"
+      ],
+      "spec_refs": [
+        "spec:2.1",
+        "spec:6.1",
+        "spec:7.1"
+      ],
+      "category_refs": [
+        "spec:2",
+        "spec:6",
+        "spec:7"
+      ],
+      "command": "npm run benchmark:active-fiducial-sim",
+      "artifacts": "test-results/projected-fiducial-calibration-sim/",
+      "notes": "Synthetic active-calibration harness: compares known-ID ArUco markers, symmetric/asymmetric projected circle grids, projected ChArUco, one-frame composite fiducial/circle patterns, and static/target-adapted two-frame fiducial-plus-circle refinement under randomized camera/projector geometry, then solves projector-to-camera homography with RANSAC and full-surface holdout metrics. Also includes point-level radial lens-distortion, projector-distortion, photometric preflight stress checks, and speed-aware one-frame/two-frame recommendations. Supports the active-calibration hardware spike but does not replace physical evidence."
+    }
+  ],
   "validation": {
     "errors": [],
     "warnings": []

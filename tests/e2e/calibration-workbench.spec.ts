@@ -27,11 +27,34 @@ test('fixture labeler renders editable benchmark grid labels', async ({ page }) 
   await expect(page.locator('#label-columns')).toHaveValue('12');
   await expect(page.locator('#label-rows')).toHaveValue('8');
   await expect(page.locator('#show-label-grid')).toBeChecked();
+  await expect(page.getByRole('button', { name: 'Use OpenCV Seed' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Use AI Seed' })).toBeVisible();
+  await expect(page.locator('#ai-seed-mode')).toHaveValue('grid-frame');
+  await expect(page.locator('#ai-seed-mode')).toContainText('Bounded image-frame grid');
+  await expect(page.locator('#ai-seed-mode')).toContainText('Supported visible patch');
+  await expect(page.getByText('Show AI support cells')).toBeVisible();
+  await expect(page.locator('#show-ai-support')).not.toBeChecked();
+  await expect(page.getByRole('button', { name: 'Fit' })).toBeVisible();
+  await expect(page.getByRole('button', { name: '100%' })).toBeVisible();
+  await expect(page.getByRole('button', { name: '200%' })).toBeVisible();
+  await expect(page.locator('#native-readout')).toContainText(/Native \d+ x \d+/);
   await expect(page.getByText('Show virtual grid overlay')).toContainText('G');
   await expect(page.locator('.labeler-stepper').filter({ hasText: 'Columns' })).toContainText('C');
   await expect(page.locator('.labeler-stepper').filter({ hasText: 'Rows' })).toContainText('R');
 
   await expect.poll(() => countNonBlankPixels(page, '#labeler-canvas')).toBeGreaterThan(5000);
+  await expect(page.locator('#labeler-canvas')).toHaveAttribute('data-view-mode', 'fit');
+  await page.getByRole('button', { name: '100%' }).click();
+  await expect(page.locator('#labeler-canvas')).toHaveAttribute('data-view-mode', 'manual');
+  await expect(page.locator('#labeler-canvas')).toHaveAttribute('data-zoom-scale', '1');
+  const canvasBox = await page.locator('#labeler-canvas').boundingBox();
+  expect(canvasBox).not.toBeNull();
+  await page.mouse.move((canvasBox?.x ?? 0) + (canvasBox?.width ?? 1) / 2, (canvasBox?.y ?? 0) + (canvasBox?.height ?? 1) / 2);
+  await page.mouse.wheel(0, -200);
+  await expect.poll(() => readLabelerZoomScale(page)).toBeGreaterThan(1.2);
+  await page.getByRole('button', { name: 'Fit' }).click();
+  await expect(page.locator('#labeler-canvas')).toHaveAttribute('data-view-mode', 'fit');
+
   const virtualGridPixels = await countVirtualGridPixels(page, '#labeler-canvas');
   expect(virtualGridPixels).toBeGreaterThan(1000);
 
@@ -71,6 +94,134 @@ test('fixture labeler renders editable benchmark grid labels', async ({ page }) 
   await page.locator('[data-step-field="columns"][data-step="1"]').click();
   await expect(page.locator('#label-columns')).toHaveValue('13');
   await expect(page.locator('#labeler-status')).toContainText('Unsaved changes');
+});
+
+test('fixture labeler moves whole grid edges on the locked axis', async ({ page }) => {
+  await page.goto('/labeler.html');
+  await expect(page.locator('#label-columns')).toHaveValue('12');
+  await expect.poll(() => countNonBlankPixels(page, '#labeler-canvas')).toBeGreaterThan(5000);
+
+  const beforeA = await readLabelCornerValues(page, 0);
+  const beforeB = await readLabelCornerValues(page, 1);
+  const topHandle = await labelerCanvasPointForNatural(page, {
+    x: (beforeA.x + beforeB.x) / 2,
+    y: (beforeA.y + beforeB.y) / 2,
+  });
+
+  await page.mouse.move(topHandle.x, topHandle.y);
+  await page.mouse.down();
+  await expect(page.locator('#labeler-canvas')).toHaveAttribute('data-dragging-edge', '0');
+  await page.mouse.move(topHandle.x, topHandle.y + 36, { steps: 6 });
+  await page.mouse.up();
+
+  const afterA = await readLabelCornerValues(page, 0);
+  const afterB = await readLabelCornerValues(page, 1);
+  expect(afterA.x).toBe(beforeA.x);
+  expect(afterB.x).toBe(beforeB.x);
+  expect(afterA.y).toBeGreaterThan(beforeA.y);
+  expect(afterB.y).toBeGreaterThan(beforeB.y);
+  await expect(page.locator('#labeler-status')).toContainText('Grid edge moved');
+});
+
+test('fixture labeler seeds labels from the OpenCV gateway detector', async ({ page }) => {
+  await page.route('**/__opencv-detection?**', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        detected: true,
+        imageWidth: 1080,
+        imageHeight: 800,
+        corners: [
+          { x: 100, y: 110 },
+          { x: 980, y: 120 },
+          { x: 960, y: 690 },
+          { x: 90, y: 680 },
+        ],
+        columns: 17,
+        rows: 13,
+        confidence: 0.35,
+        latticeScore: 0.08,
+        selectedFitKind: 'test-opencv-seed',
+        detectorMessage: 'stubbed OpenCV seed',
+        elapsedMs: 1234,
+      }),
+    });
+  });
+
+  await page.goto('/labeler.html');
+  await page.getByRole('button', { name: 'Use OpenCV Seed' }).click();
+
+  await expect(page.locator('#label-columns')).toHaveValue('17');
+  await expect(page.locator('#label-rows')).toHaveValue('13');
+  await expect(page.locator('#labeler-status')).toContainText('OpenCV seed applied');
+  await expect(page.locator('#labeler-status')).toContainText('17 x 13');
+
+  const corner = await readLabelCornerValues(page, 0);
+  expect(corner).toEqual({ x: 100, y: 110 });
+});
+
+test('fixture labeler seeds labels from the current AI grid report', async ({ page }) => {
+  await page.route('**/__ai-grid-seed?**', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        detected: true,
+        imageWidth: 1080,
+        imageHeight: 800,
+        corners: [
+          { x: 120, y: 130 },
+          { x: 980, y: 125 },
+          { x: 970, y: 690 },
+          { x: 110, y: 700 },
+        ],
+        columns: 21,
+        rows: 11,
+        modeId: 'fit-span',
+        modeLabel: 'Selected dot extent (extrapolates)',
+        riskLevel: 'medium',
+        dotVariantId: 'dot-v05',
+        decision: 'accepted-visible-lattice-geometry',
+        noLabelProjectionReadinessMode: 'no-label-full-span-candidate',
+        fullSpanHomographyLineWithin0_15Pct: 98.7,
+        visibleMeshCells: 120,
+        unsupportedCellCount: 40,
+        supportOverlay: {
+          vertexCount: 4,
+          cellCount: 1,
+          cells: [
+            {
+              i: 0,
+              j: 0,
+              corners: [
+                { x: 120, y: 130 },
+                { x: 160, y: 130 },
+                { x: 160, y: 170 },
+                { x: 120, y: 170 },
+              ],
+            },
+          ],
+        },
+      }),
+    });
+  });
+
+  await page.goto('/labeler.html');
+  await page.locator('#ai-seed-mode').selectOption('fit-span');
+  await page.getByRole('button', { name: 'Use AI Seed' }).click();
+
+  await expect(page.locator('#label-columns')).toHaveValue('21');
+  await expect(page.locator('#label-rows')).toHaveValue('11');
+  await expect(page.locator('#labeler-status')).toContainText('AI seed Selected dot extent (extrapolates) dot-v05 applied');
+  await expect(page.locator('#labeler-status')).toContainText('21 x 11');
+  await expect(page.locator('#labeler-status')).toContainText('supported 120 cells / unsupported 40');
+  await expect(page.locator('#labeler-canvas')).toHaveAttribute('data-ai-support-overlay', 'hidden');
+  await page.locator('#show-ai-support').check();
+  await expect(page.locator('#labeler-canvas')).toHaveAttribute('data-ai-support-overlay', 'visible');
+
+  const corner = await readLabelCornerValues(page, 0);
+  expect(corner).toEqual({ x: 120, y: 130 });
 });
 
 test('fixture labeler save refreshes labeled state and reloads saved labels', async ({ page }) => {
@@ -122,6 +273,30 @@ test('fixture labeler shows a zoom reticle while dragging a corner', async ({ pa
   await expect(page.locator('#labeler-canvas')).not.toHaveAttribute('data-magnifier', 'visible');
 });
 
+test('fixture labeler auto-pans when dragging a corner against the viewport edge', async ({ page }) => {
+  await page.goto('/labeler.html');
+  await page.getByRole('button', { name: '100%' }).click();
+  await expect(page.locator('#labeler-canvas')).toHaveAttribute('data-view-mode', 'manual');
+
+  const start = await defaultLabelCornerCanvasPoint(page, 0);
+  const before = await readLabelViewport(page);
+  const canvasBox = await page.locator('#labeler-canvas').boundingBox();
+  expect(canvasBox).not.toBeNull();
+
+  await page.mouse.move(start.x, start.y);
+  await page.mouse.down();
+  await page.mouse.move((canvasBox?.x ?? 0) - 120, (canvasBox?.y ?? 0) - 120, { steps: 8 });
+
+  const during = await readLabelViewport(page);
+  expect(during.minX).toBeLessThan(before.minX);
+  expect(during.minY).toBeLessThan(before.minY);
+
+  await page.mouse.up();
+  const afterRelease = await readLabelViewport(page);
+  expect(afterRelease.minX).toBeLessThan(before.minX);
+  expect(afterRelease.minY).toBeLessThan(before.minY);
+});
+
 test('fixture labeler supports extrapolated off-image grid corners', async ({ page }) => {
   await page.goto('/labeler.html');
   await expect(page.locator('#label-columns')).toHaveValue('12');
@@ -141,6 +316,14 @@ test('fixture labeler supports extrapolated off-image grid corners', async ({ pa
   await expect(page.locator('#fixture-meta')).toContainText('extrapolated grid');
   await expect(page.locator('#labeler-status')).toContainText('Unsaved changes');
   expect(await countVirtualGridPixels(page, '#labeler-canvas')).toBeGreaterThan(1000);
+});
+
+test('fixture benchmark page renders the detector benchmark surface', async ({ page }) => {
+  await page.goto('/benchmark.html');
+
+  await expect(page.getByRole('heading', { name: 'Fixture Detector Benchmark' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Run Benchmark' })).toBeVisible();
+  await expect(page.locator('#benchmark-summary')).toContainText('No benchmark run yet');
 });
 
 test('controller source scale updates projector state storage', async ({ page }) => {
@@ -316,6 +499,28 @@ async function labelerCanvasPointForNatural(
       y: rect.top + fit.y + (point.y - fit.minY) * fit.scale,
     };
   }, naturalPoint);
+}
+
+async function readLabelerZoomScale(page: import('@playwright/test').Page): Promise<number> {
+  return page.locator('#labeler-canvas').evaluate((canvas: HTMLCanvasElement) => (
+    Number(canvas.dataset.zoomScale) || 0
+  ));
+}
+
+async function readLabelViewport(page: import('@playwright/test').Page): Promise<{
+  minX: number;
+  minY: number;
+}> {
+  return page.locator('#labeler-canvas').evaluate((canvas: HTMLCanvasElement) => {
+    const fit = JSON.parse(canvas.dataset.labelViewport ?? '{}') as {
+      minX?: number;
+      minY?: number;
+    };
+    return {
+      minX: Number(fit.minX) || 0,
+      minY: Number(fit.minY) || 0,
+    };
+  });
 }
 
 async function readLabelCornerValues(

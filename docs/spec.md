@@ -254,6 +254,12 @@ Full automatic grid detection is desirable, but manual fallback is required:
 
 Relevant scout: [Scout 001](scout/scout-001-existing-battle-map-projection-solutions.md) should inform source-map scale, true-table-scale rendering, and projector view controls. It does not solve the camera-to-projector-to-mat homography this section requires.
 
+Relevant scout: [Scout 003](scout/scout-003-projection-mapping-calibration-techniques.md) recommends adapting projection-mapping mechanics for the hardware loop: passive or fiducial mat-grid detection should be combined with active projector-camera calibration from sparse projected points or projected coded fiducials, with one residual-check frame before considering dense structured-light or mesh-warp approaches.
+
+Architecture decision: [ADR-001](decisions/adr-001-calibration-architecture.md) records the layered calibration model: reusable camera profile, reusable fixed projector-camera rig profile, and per-session table/mat/grid acquisition.
+
+Architecture decision: [ADR-002](decisions/adr-002-grid-detection-alignment-frame.md) records the grid-detection interpretation used by the current discovery lane: detected grid evidence is an internal alignment coordinate frame, not authoritative proof of the physical mat boundary.
+
 ### spec:6.2 — Scale Rules
 
 Source maps may use 5 ft, 10 ft, or custom square scales. A 10 ft source square should be able to cover 2 by 2 physical 5 ft mat squares.

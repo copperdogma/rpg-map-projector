@@ -14,4 +14,6 @@
 | ID | Title | Priority | Status | Depends On | Link |
 |---|---|---|---|---|---|
 | 001 | Calibration Projection Spike | High | In Progress | - | [story](stories/story-001-calibration-projection-spike.md) |
-| 002 | Labeled Fixture Detector Benchmark | High | Pending | - | [story](stories/story-002-labeled-fixture-detector-benchmark.md) |
+| 002 | Labeled Fixture Detector Benchmark | High | Done | - | [story](stories/story-002-labeled-fixture-detector-benchmark.md) |
+| 003 | Calibration Algorithm Discovery And Evaluation | High | Done | 002 | [story](stories/story-003-calibration-algorithm-discovery-evaluation.md) |
+| 004 | Active Projector-Camera Calibration Pattern Spike | High | Draft | 001 | [story](stories/story-004-active-projector-camera-calibration-pattern-spike.md) |

@@ -1,9 +1,11 @@
 .DS_Store
 docs/.DS_Store
+.env
 __pycache__/
 *.pyc
 node_modules/
 dist/
 test-results/
+playwright-results/
 playwright-report/
 input/map-pix/
