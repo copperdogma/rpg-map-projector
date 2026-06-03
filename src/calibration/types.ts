@@ -10,6 +10,7 @@ export interface CalibrationAnchor {
 }
 
 export type SourceSquareFeet = 5 | 10;
+export type ProjectorOutputMode = 'alignment' | 'blank';
 
 export interface EvidenceLog {
   setupStartedAt: string;
@@ -17,6 +18,15 @@ export interface EvidenceLog {
   measuredErrorInches: number;
   placementNotes: string;
   failureModes: string;
+  camera: CameraEvidence | null;
+}
+
+export interface CameraEvidence {
+  deviceLabel: string;
+  streamWidth: number;
+  streamHeight: number;
+  capturedFrameName: string;
+  capturedAt: string;
 }
 
 export interface GridDetectionFamily {
@@ -54,6 +64,7 @@ export interface CalibrationState {
     width: number;
     height: number;
   };
+  projectorMode: ProjectorOutputMode;
   sourceSquareFeet: SourceSquareFeet;
   showCalibrationPoints: boolean;
   showPhysicalGrid: boolean;

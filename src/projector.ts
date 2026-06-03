@@ -5,8 +5,9 @@ import type { CalibrationState } from './calibration/types';
 
 let state: CalibrationState = readState();
 
-const root = document.querySelector<HTMLDivElement>('#projector-root');
-if (!root) throw new Error('Missing projector root');
+const rootElement = document.querySelector<HTMLDivElement>('#projector-root');
+if (!rootElement) throw new Error('Missing projector root');
+const root = rootElement;
 
 root.innerHTML = `
   <main class="projector-shell">
@@ -35,8 +36,14 @@ window.addEventListener('resize', render);
 render();
 
 function render(): void {
+  root.dataset.projectorMode = state.projectorMode;
+
   const scale = document.querySelector<HTMLSpanElement>('#projector-scale');
-  if (scale) scale.textContent = `${state.sourceSquareFeet} ft source squares`;
+  if (scale) {
+    scale.textContent = state.projectorMode === 'blank'
+      ? 'blank capture mode'
+      : `${state.sourceSquareFeet} ft source squares`;
+  }
 
   renderCalibrationCanvas(canvas, state, {
     background: 'projector',

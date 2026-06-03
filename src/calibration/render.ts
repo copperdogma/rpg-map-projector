@@ -38,6 +38,11 @@ export function renderCalibrationCanvas(
     drawSyntheticMat(context, width, height);
   }
 
+  if (state.projectorMode === 'blank') {
+    context.restore();
+    return;
+  }
+
   context.translate(offset.x, offset.y);
   context.scale(scale, scale);
   context.globalAlpha = clamp(state.brightness, 0.25, 1.5);

@@ -64,7 +64,8 @@
           "001",
           "002",
           "003",
-          "004"
+          "004",
+          "005"
         ],
         "eval_ids": [
           "eval:calibration-algorithm-discovery",
@@ -109,7 +110,8 @@
           "last_reviewed": "2026-05-27"
         },
         "story_ids": [
-          "001"
+          "001",
+          "005"
         ],
         "eval_ids": []
       },
@@ -208,7 +210,8 @@
           "001",
           "002",
           "003",
-          "004"
+          "004",
+          "005"
         ],
         "eval_ids": [
           "eval:fixture-grid-detection",
@@ -302,7 +305,8 @@
           "last_reviewed": "2026-05-27"
         },
         "story_ids": [
-          "001"
+          "001",
+          "005"
         ]
       },
       {
@@ -317,7 +321,8 @@
           "001",
           "002",
           "003",
-          "004"
+          "004",
+          "005"
         ]
       },
       {
@@ -362,7 +367,8 @@
           "001",
           "002",
           "003",
-          "004"
+          "004",
+          "005"
         ]
       }
     ]
@@ -570,6 +576,36 @@
         "B3",
         "B7"
       ]
+    },
+    {
+      "id": "005",
+      "title": "ESP32-S3 Wi-Fi Webcam Prototype",
+      "path": "docs/stories/story-005-esp32-s3-wifi-webcam-prototype.md",
+      "status": "Done",
+      "priority": "High",
+      "origin": "The phone-as-camera path is ergonomically poor and not representative of the likely fixed camera. An available ESP32-S3 WROOM camera board can remove the phone from the loop and provide projector-mounted fixed-camera evidence.",
+      "ideal_refs": [
+        "docs/ideal.md"
+      ],
+      "spec_refs": [
+        "spec:2.1",
+        "spec:2.2",
+        "spec:3.1",
+        "spec:6.1"
+      ],
+      "depends_on": [
+        "001"
+      ],
+      "category_refs": [
+        "spec:2",
+        "spec:3",
+        "spec:6"
+      ],
+      "compromise_refs": [
+        "B2",
+        "B3",
+        "B7"
+      ]
     }
   ],
   "adrs": [
@@ -638,6 +674,18 @@
         "spec:5.1",
         "spec:6.1",
         "spec:7.1"
+      ]
+    },
+    {
+      "id": "004",
+      "title": "ESP32-CAM Camera And Gateway Fit",
+      "path": "docs/scout/scout-004-esp32-cam-camera-and-gateway-fit.md",
+      "status": "Filed",
+      "spec_refs": [
+        "spec:2.1",
+        "spec:2.2",
+        "spec:3.1",
+        "spec:6.1"
       ]
     }
   ],

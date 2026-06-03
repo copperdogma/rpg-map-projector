@@ -1,0 +1,3 @@
+.pio/
+include/secrets.h
+network-camera.local.json

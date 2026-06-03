@@ -19,6 +19,27 @@ test('projector view renders the calibration pattern', async ({ page }) => {
   await expect.poll(() => countNonBlankPixels(page, '#projector-canvas')).toBeGreaterThan(5000);
 });
 
+test('controller can blank the projector output without projecting the HUD', async ({ page }) => {
+  await page.goto('/');
+  const projector = await page.context().newPage();
+  await projector.goto('/projector.html');
+
+  await expect.poll(() => countBrightPixels(projector, '#projector-canvas', 40)).toBeGreaterThan(5000);
+
+  await page.getByRole('button', { name: 'Blank', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Blank', exact: true })).toHaveClass(/selected/);
+  await expect(projector.locator('#projector-root')).toHaveAttribute('data-projector-mode', 'blank');
+  await expect(projector.getByText('Projector View')).not.toBeVisible();
+  await expect.poll(() => countBrightPixels(projector, '#projector-canvas', 40)).toBeLessThan(20);
+
+  await page.getByRole('button', { name: 'Alignment grid' }).click();
+  await expect(projector.locator('#projector-root')).toHaveAttribute('data-projector-mode', 'alignment');
+  await expect(projector.getByText('Projector View')).toBeVisible();
+  await expect.poll(() => countBrightPixels(projector, '#projector-canvas', 40)).toBeGreaterThan(5000);
+
+  await projector.close();
+});
+
 test('fixture labeler renders editable benchmark grid labels', async ({ page }) => {
   await page.goto('/labeler.html');
 
@@ -338,6 +359,264 @@ test('controller source scale updates projector state storage', async ({ page })
   expect(storedScale).toBe(10);
 });
 
+test('controller captures a selected live camera frame for grid detection evidence', async ({ page }) => {
+  await page.addInitScript(() => {
+    function drawTestMat(canvas: HTMLCanvasElement): void {
+      canvas.width = 1080;
+      canvas.height = 800;
+      const context = canvas.getContext('2d');
+      if (!context) return;
+      context.fillStyle = '#f3efe5';
+      context.fillRect(0, 0, canvas.width, canvas.height);
+      context.fillStyle = '#f8f4ea';
+      context.strokeStyle = '#6a6659';
+      context.lineWidth = 4;
+      context.fillRect(120, 120, 840, 560);
+      context.strokeRect(120, 120, 840, 560);
+      context.strokeStyle = '#8f9a8a';
+      context.lineWidth = 2;
+      for (let x = 120; x <= 960; x += 70) {
+        context.beginPath();
+        context.moveTo(x, 120);
+        context.lineTo(x, 680);
+        context.stroke();
+      }
+      for (let y = 120; y <= 680; y += 70) {
+        context.beginPath();
+        context.moveTo(120, y);
+        context.lineTo(960, y);
+        context.stroke();
+      }
+    }
+
+    const fakeCanvas = document.createElement('canvas');
+    drawTestMat(fakeCanvas);
+    window.setInterval(() => {
+      drawTestMat(fakeCanvas);
+    }, 50);
+    Object.defineProperty(navigator, 'mediaDevices', {
+      configurable: true,
+      value: {
+        enumerateDevices: async () => [
+          {
+            deviceId: 'iphone-camera',
+            groupId: 'continuity-camera',
+            kind: 'videoinput',
+            label: "Cam's iPhone Camera",
+            toJSON: () => ({}),
+          },
+        ],
+        getUserMedia: async () => fakeCanvas.captureStream(10),
+      },
+    });
+  });
+
+  await page.goto('/');
+  await expect(page.locator('#camera-device')).toContainText("Cam's iPhone Camera");
+  await page.locator('#camera-device').selectOption('iphone-camera');
+  await page.getByRole('button', { name: 'Start Camera' }).click();
+  await expect(page.getByRole('button', { name: 'Stop Camera' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Capture & Detect Frame' })).toBeEnabled();
+
+  await page.getByRole('button', { name: 'Capture & Detect Frame' }).click();
+  await expect(page.locator('#preview-mode')).toContainText('Captured camera frame');
+  await expect(page.locator('#detection-status')).toContainText(/camera-frame-/);
+  await expect(page.locator('#camera-evidence')).toContainText("Cam's iPhone Camera");
+  await expect(page.locator('#camera-evidence')).toContainText('1080 x 800');
+
+  const state = await page.evaluate(() => {
+    const raw = window.localStorage.getItem('rpg-map-projector:story-001-calibration');
+    return raw ? JSON.parse(raw) : null;
+  });
+
+  expect(state?.detectedGrid?.sourceName).toMatch(/^camera-frame-/);
+  expect(state?.detectedGrid?.sourceUrl).toMatch(/^data:image\/jpeg/);
+  expect(state?.evidence?.camera?.deviceLabel).toBe("Cam's iPhone Camera");
+  expect(state?.evidence?.camera?.streamWidth).toBe(1080);
+  expect(state?.evidence?.camera?.streamHeight).toBe(800);
+  expect(state?.evidence?.camera?.capturedFrameName).toMatch(/^camera-frame-/);
+});
+
+test('controller exposes configured network cameras in the selector and captures one as evidence', async ({ page }) => {
+  await page.route('**/__network-cameras', async (route) => {
+    await route.fulfill({
+      contentType: 'application/json',
+      body: JSON.stringify({
+        cameras: [
+          {
+            id: 'esp32s3-test',
+            label: 'ESP32-S3 Wi-Fi Camera',
+            baseUrl: 'http://esp32s3.test',
+          },
+        ],
+      }),
+    });
+  });
+  await page.route('**/__network-camera-capture**', async (route) => {
+    await route.fulfill({
+      contentType: 'image/svg+xml',
+      body: `
+        <svg xmlns="http://www.w3.org/2000/svg" width="640" height="480" viewBox="0 0 640 480">
+          <rect width="640" height="480" fill="#d8d1c3"/>
+          <rect x="80" y="90" width="480" height="280" fill="#6f7f84"/>
+          <rect x="120" y="150" width="170" height="120" fill="#9e5a3f"/>
+          <rect x="340" y="130" width="150" height="190" fill="#334c66"/>
+        </svg>
+      `,
+    });
+  });
+
+  await page.goto('/');
+  await expect(page.locator('#camera-device')).toContainText('ESP32-S3 Wi-Fi Camera');
+  await page.locator('#camera-device').selectOption('network:esp32s3-test');
+  await page.getByRole('button', { name: 'Start Camera' }).click();
+  await expect(page.getByRole('button', { name: 'Stop Camera' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Capture & Detect Frame' })).toBeEnabled();
+
+  await page.getByRole('button', { name: 'Capture & Detect Frame' }).click();
+  await expect(page.locator('#preview-mode')).toContainText('Captured camera frame');
+  await expect(page.locator('#camera-evidence')).toContainText('ESP32-S3 Wi-Fi Camera');
+
+  const state = await page.evaluate(() => {
+    const raw = window.localStorage.getItem('rpg-map-projector:story-001-calibration');
+    return raw ? JSON.parse(raw) : null;
+  });
+
+  expect(state?.evidence?.camera?.deviceLabel).toBe('ESP32-S3 Wi-Fi Camera');
+  expect(state?.evidence?.camera?.streamWidth).toBe(640);
+  expect(state?.evidence?.camera?.streamHeight).toBe(480);
+  expect(state?.evidence?.camera?.capturedFrameName).toMatch(/^camera-frame-/);
+});
+
+test('controller blanks projector for clean mat camera capture then restores alignment grid', async ({ page }) => {
+  await page.addInitScript(() => {
+    function drawTestMat(canvas: HTMLCanvasElement): void {
+      canvas.width = 1080;
+      canvas.height = 800;
+      const context = canvas.getContext('2d');
+      if (!context) return;
+      context.fillStyle = '#f3efe5';
+      context.fillRect(0, 0, canvas.width, canvas.height);
+      context.fillStyle = '#f8f4ea';
+      context.strokeStyle = '#6a6659';
+      context.lineWidth = 4;
+      context.fillRect(120, 120, 840, 560);
+      context.strokeRect(120, 120, 840, 560);
+      context.strokeStyle = '#8f9a8a';
+      context.lineWidth = 2;
+      for (let x = 120; x <= 960; x += 70) {
+        context.beginPath();
+        context.moveTo(x, 120);
+        context.lineTo(x, 680);
+        context.stroke();
+      }
+      for (let y = 120; y <= 680; y += 70) {
+        context.beginPath();
+        context.moveTo(120, y);
+        context.lineTo(960, y);
+        context.stroke();
+      }
+    }
+
+    const fakeCanvas = document.createElement('canvas');
+    drawTestMat(fakeCanvas);
+    window.setInterval(() => {
+      drawTestMat(fakeCanvas);
+    }, 50);
+    Object.defineProperty(navigator, 'mediaDevices', {
+      configurable: true,
+      value: {
+        enumerateDevices: async () => [
+          {
+            deviceId: 'iphone-camera',
+            groupId: 'continuity-camera',
+            kind: 'videoinput',
+            label: "Cam's iPhone Camera",
+            toJSON: () => ({}),
+          },
+        ],
+        getUserMedia: async () => fakeCanvas.captureStream(10),
+      },
+    });
+  });
+
+  await page.goto('/');
+  await page.locator('#camera-device').selectOption('iphone-camera');
+  await page.getByRole('button', { name: 'Start Camera' }).click();
+  await expect(page.getByRole('button', { name: 'Blank & Capture Mat' })).toBeEnabled();
+
+  await page.getByRole('button', { name: 'Blank & Capture Mat' }).click();
+  await expect(page.locator('#preview-mode')).toContainText('Captured camera frame');
+  await expect(page.locator('#detection-status')).toContainText(/clean-mat-frame-/);
+
+  const state = await page.evaluate(() => {
+    const raw = window.localStorage.getItem('rpg-map-projector:story-001-calibration');
+    return raw ? JSON.parse(raw) : null;
+  });
+
+  expect(state?.projectorMode).toBe('alignment');
+  expect(state?.detectedGrid?.sourceName).toMatch(/^clean-mat-frame-/);
+  expect(state?.evidence?.camera?.capturedFrameName).toMatch(/^clean-mat-frame-/);
+});
+
+test('controller keeps failed live camera captures available for manual grid seeding', async ({ page }) => {
+  await page.addInitScript(() => {
+    const fakeCanvas = document.createElement('canvas');
+    fakeCanvas.width = 1280;
+    fakeCanvas.height = 720;
+    function drawBlankFrame(): void {
+      const context = fakeCanvas.getContext('2d');
+      if (!context) return;
+      context.fillStyle = '#151714';
+      context.fillRect(0, 0, fakeCanvas.width, fakeCanvas.height);
+      context.fillStyle = '#c7baa1';
+      context.fillRect(0, fakeCanvas.height * 0.55, fakeCanvas.width, fakeCanvas.height * 0.45);
+    }
+    drawBlankFrame();
+    window.setInterval(drawBlankFrame, 50);
+    Object.defineProperty(navigator, 'mediaDevices', {
+      configurable: true,
+      value: {
+        enumerateDevices: async () => [
+          {
+            deviceId: 'iphone-camera',
+            groupId: 'continuity-camera',
+            kind: 'videoinput',
+            label: "Cam's iPhone Camera",
+            toJSON: () => ({}),
+          },
+        ],
+        getUserMedia: async () => fakeCanvas.captureStream(10),
+      },
+    });
+  });
+
+  await page.goto('/');
+  await page.locator('#camera-device').selectOption('iphone-camera');
+  await page.getByRole('button', { name: 'Start Camera' }).click();
+  await expect(page.getByRole('button', { name: 'Capture & Detect Frame' })).toBeEnabled();
+  await page.getByRole('button', { name: 'Capture & Detect Frame' }).click();
+
+  await expect(page.locator('#preview-mode')).toContainText('Captured camera frame');
+  await expect(page.locator('#detection-status')).toContainText('Detection failed');
+  await expect(page.getByRole('button', { name: 'Manual Seed Handles' })).toBeEnabled();
+
+  await page.getByRole('button', { name: 'Manual Seed Handles' }).click();
+  await expect(page.locator('#detection-status')).toContainText('Manual seed handles placed');
+  await expect(page.locator('#alignment-status')).toContainText('Manual correction required');
+
+  const state = await page.evaluate(() => {
+    const raw = window.localStorage.getItem('rpg-map-projector:story-001-calibration');
+    return raw ? JSON.parse(raw) : null;
+  });
+
+  expect(state?.detectedGrid?.sourceName).toMatch(/^camera-frame-/);
+  expect(state?.detectedGrid?.confidence).toBe(0.2);
+  expect(state?.detectedGrid?.columns).toBe(12);
+  expect(state?.detectedGrid?.rows).toBe(8);
+  expect(state?.detectedGrid?.corners?.[0].y).toBeGreaterThan(350);
+});
+
 test('controller runs generated false-input grid detection and aligns projector anchors', async ({ page }) => {
   await page.goto('/');
 
@@ -453,6 +732,24 @@ async function countNonBlankPixels(page: import('@playwright/test').Page, select
     }
     return count;
   });
+}
+
+async function countBrightPixels(
+  page: import('@playwright/test').Page,
+  selector: string,
+  threshold: number,
+): Promise<number> {
+  return page.locator(selector).evaluate((canvas: HTMLCanvasElement, minimumLuma) => {
+    const context = canvas.getContext('2d');
+    if (!context) return 0;
+    const data = context.getImageData(0, 0, canvas.width, canvas.height).data;
+    let count = 0;
+    for (let index = 0; index < data.length; index += 4) {
+      const luma = (data[index] * 0.2126) + (data[index + 1] * 0.7152) + (data[index + 2] * 0.0722);
+      if (luma >= minimumLuma) count += 1;
+    }
+    return count;
+  }, threshold);
 }
 
 async function defaultLabelCornerCanvasPoint(

@@ -12,8 +12,10 @@ const opencvBenchmarkScriptPath = resolve(root, 'scripts/opencv-fixture-benchmar
 const aiGridReportPath = resolve(root, 'test-results/ai-dot-lattice-fit-risk-aware-summary-v1/report.json');
 const aiGridHybridReportPath = resolve(root, 'test-results/ai-grid-hybrid-prompt-ensemble-summary-v1/report.json');
 const aiGridParallelDir = resolve(root, 'test-results/ai-grid-parallel-current');
+const networkCameraConfigPath = resolve(root, 'prototypes/esp32-s3-wifi-webcam/network-camera.local.json');
 const AI_GRID_SEED_MODES = ['grid-frame', 'supported', 'fit-span', 'manual-span-diagnostic', 'label-sized-diagnostic'] as const;
 const MIN_IMAGE_FRAME_BAND_OVERLAP = 0.10;
+const NETWORK_CAMERA_CAPTURE_TIMEOUT_MS = 20000;
 
 type AiGridSeedModeId = typeof AI_GRID_SEED_MODES[number];
 
@@ -52,6 +54,16 @@ function fixtureLabelPlugin(): Plugin {
           return;
         }
 
+        if (requestUrl.pathname === '/__network-cameras') {
+          await handleNetworkCamerasRequest(response);
+          return;
+        }
+
+        if (requestUrl.pathname === '/__network-camera-capture') {
+          await handleNetworkCameraCaptureRequest(requestUrl, response);
+          return;
+        }
+
         if (requestUrl.pathname !== '/__fixture-labels') {
           next();
           return;
@@ -84,6 +96,121 @@ function fixtureLabelPlugin(): Plugin {
       });
     },
   };
+}
+
+interface NetworkCameraSource {
+  id: string;
+  label: string;
+  baseUrl: string;
+  capturePath?: string;
+}
+
+const defaultNetworkCameraSources: NetworkCameraSource[] = [
+  {
+    id: 'esp32s3-mdns',
+    label: 'ESP32-S3 Wi-Fi Camera',
+    baseUrl: 'http://rpg-esp32s3-webcam.local',
+  },
+  {
+    id: 'esp32s3-ap',
+    label: 'ESP32-S3 Wi-Fi Camera AP',
+    baseUrl: 'http://192.168.4.1',
+  },
+];
+
+async function handleNetworkCamerasRequest(
+  response: import('node:http').ServerResponse,
+): Promise<void> {
+  try {
+    sendJson(response, 200, { cameras: await readNetworkCameraSources() });
+  } catch (error) {
+    sendText(response, 500, (error as Error).message);
+  }
+}
+
+async function handleNetworkCameraCaptureRequest(
+  requestUrl: URL,
+  response: import('node:http').ServerResponse,
+): Promise<void> {
+  const cameraId = requestUrl.searchParams.get('id') ?? '';
+  const camera = (await readNetworkCameraSources()).find((source) => source.id === cameraId);
+  if (!camera) {
+    sendText(response, 404, `Unknown network camera: ${cameraId}`);
+    return;
+  }
+
+  try {
+    const captureUrl = networkCameraCaptureUrl(camera);
+    const upstream = await fetch(captureUrl, {
+      cache: 'no-store',
+      signal: AbortSignal.timeout(NETWORK_CAMERA_CAPTURE_TIMEOUT_MS),
+    });
+    if (!upstream.ok) {
+      sendText(response, 502, `Network camera returned ${upstream.status} for ${captureUrl}`);
+      return;
+    }
+    const contentType = upstream.headers.get('content-type') ?? 'image/jpeg';
+    if (!contentType.startsWith('image/')) {
+      sendText(response, 502, `Network camera returned non-image content: ${contentType}`);
+      return;
+    }
+    const body = Buffer.from(await upstream.arrayBuffer());
+    response.statusCode = 200;
+    response.setHeader('Content-Type', contentType);
+    response.setHeader('Cache-Control', 'no-store');
+    response.setHeader('X-Camera-Source', camera.id);
+    response.end(body);
+  } catch (error) {
+    sendText(response, 502, (error as Error).message);
+  }
+}
+
+function networkCameraCaptureUrl(camera: NetworkCameraSource): string {
+  const baseUrl = new URL(camera.baseUrl);
+  if (baseUrl.protocol !== 'http:' && baseUrl.protocol !== 'https:') {
+    throw new Error(`Unsupported network camera protocol for ${camera.id}.`);
+  }
+  return new URL(camera.capturePath || '/capture', baseUrl).toString();
+}
+
+async function readNetworkCameraSources(): Promise<NetworkCameraSource[]> {
+  try {
+    const payload = JSON.parse(await readFile(networkCameraConfigPath, 'utf8'));
+    if (!payload || typeof payload !== 'object' || !Array.isArray(payload.cameras)) {
+      throw new Error('network-camera.local.json must contain a cameras array.');
+    }
+    return payload.cameras.map(parseNetworkCameraSource);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+      return defaultNetworkCameraSources;
+    }
+    throw error;
+  }
+}
+
+function parseNetworkCameraSource(value: unknown): NetworkCameraSource {
+  if (!value || typeof value !== 'object') {
+    throw new Error('Network camera entry must be an object.');
+  }
+  const record = value as Record<string, unknown>;
+  const id = String(record.id ?? '').trim();
+  const label = String(record.label ?? '').trim();
+  const baseUrl = String(record.baseUrl ?? '').trim();
+  const capturePath = record.capturePath === undefined ? undefined : String(record.capturePath).trim();
+  if (!id || !/^[a-zA-Z0-9_-]+$/.test(id)) {
+    throw new Error('Network camera id must be alphanumeric plus dash/underscore.');
+  }
+  if (!label) {
+    throw new Error(`Network camera ${id} is missing a label.`);
+  }
+  if (!baseUrl) {
+    throw new Error(`Network camera ${id} is missing baseUrl.`);
+  }
+  const parsed = new URL(baseUrl);
+  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+    throw new Error(`Network camera ${id} must use http or https.`);
+  }
+  return { id, label, baseUrl: parsed.toString().replace(/\/$/, ''), capturePath };
 }
 
 async function handleAiGridSeedRequest(

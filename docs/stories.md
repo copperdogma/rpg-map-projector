@@ -17,3 +17,4 @@
 | 002 | Labeled Fixture Detector Benchmark | High | Done | - | [story](stories/story-002-labeled-fixture-detector-benchmark.md) |
 | 003 | Calibration Algorithm Discovery And Evaluation | High | Done | 002 | [story](stories/story-003-calibration-algorithm-discovery-evaluation.md) |
 | 004 | Active Projector-Camera Calibration Pattern Spike | High | Draft | 001 | [story](stories/story-004-active-projector-camera-calibration-pattern-spike.md) |
+| 005 | ESP32-S3 Wi-Fi Webcam Prototype | High | Done | 001 | [story](stories/story-005-esp32-s3-wifi-webcam-prototype.md) |

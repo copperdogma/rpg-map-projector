@@ -17,14 +17,39 @@ import {
   mapDetectedGridToAnchors,
   meanCornerDelta,
 } from './calibration/detectedGridProjection';
-import type { CalibrationAnchor, DetectedGrid, Point, SourceSquareFeet } from './calibration/types';
+import type {
+  CalibrationAnchor,
+  DetectedGrid,
+  Point,
+  ProjectorOutputMode,
+  SourceSquareFeet,
+} from './calibration/types';
 
 let state = readState();
 let cameraActive = false;
 let stream: MediaStream | null = null;
+let networkCameraActive = false;
+let networkCameraCanvas: HTMLCanvasElement | null = null;
+let networkCameraTimer: number | null = null;
+let networkFrameInFlight = false;
 let loadedSampleImage: HTMLImageElement | null = null;
+let loadedImageKind: 'sample' | 'upload' | 'camera' | null = null;
+let loadedImageSourceName = '';
+let loadedImageSourceUrl = '';
 let uploadedObjectUrl: string | null = null;
 let dragCornerIndex: number | null = null;
+
+const CAMERA_DEVICE_STORAGE_KEY = 'rpg-map-projector:selected-camera-device';
+const NETWORK_CAMERA_PREFIX = 'network:';
+const PROJECTOR_BLANK_CAPTURE_DELAY_MS = 700;
+
+interface NetworkCameraSource {
+  id: string;
+  label: string;
+  baseUrl: string;
+}
+
+let networkCameraSources: NetworkCameraSource[] = [];
 
 const app = document.querySelector<HTMLDivElement>('#app');
 if (!app) throw new Error('Missing app root');
@@ -54,7 +79,23 @@ app.innerHTML = `
             <h2>Camera / Mat Preview</h2>
             <p id="preview-mode">Synthetic mat preview</p>
           </div>
+        </div>
+        <div class="camera-controls" aria-label="Camera controls">
+          <label>
+            <span>Camera</span>
+            <select id="camera-device">
+              <option value="">Default camera</option>
+            </select>
+          </label>
+          <button class="button" id="refresh-camera-devices" type="button">Refresh Cameras</button>
           <button class="button" id="camera-toggle" type="button">Start Camera</button>
+          <button class="button primary" id="capture-camera-frame" type="button" disabled>Capture & Detect Frame</button>
+          <button class="button primary" id="capture-clean-mat-frame" type="button" disabled>Blank & Capture Mat</button>
+        </div>
+        <div class="projector-mode-controls" aria-label="Projector output">
+          <span>Projector output</span>
+          <button class="segment" data-projector-mode="blank" type="button">Blank</button>
+          <button class="segment" data-projector-mode="alignment" type="button">Alignment grid</button>
         </div>
         <div class="preview-stage">
           <video id="camera-video" muted playsinline></video>
@@ -84,6 +125,7 @@ app.innerHTML = `
           <div class="button-row">
             <button class="button primary" id="auto-detect-grid" type="button">Auto Detect Grid</button>
             <button class="button" id="apply-detected-grid" type="button">Apply To Projector</button>
+            <button class="button" id="seed-manual-grid" type="button">Manual Seed Handles</button>
             <button class="button" id="clear-detected-grid" type="button">Clear Image</button>
           </div>
           <p class="detection-status" id="detection-status">No image analyzed yet.</p>
@@ -164,6 +206,7 @@ app.innerHTML = `
             <span>Failure modes</span>
             <textarea id="failure-modes" rows="3"></textarea>
           </label>
+          <p class="camera-evidence" id="camera-evidence">No camera frame captured yet.</p>
           <div class="button-row">
             <button class="button" id="export-evidence" type="button">Export Evidence JSON</button>
             <button class="button" id="copy-projector-url" type="button">Copy Projector URL</button>
@@ -186,6 +229,7 @@ if (!previewCanvas || !video) throw new Error('Missing preview elements');
 
 bindControls();
 syncControls();
+void refreshCameraDevices();
 publish();
 void restoreDetectedImage();
 render();
@@ -203,6 +247,35 @@ function bindControls(): void {
     void toggleCamera();
   });
 
+  document.querySelector('#refresh-camera-devices')?.addEventListener('click', () => {
+    void refreshCameraDevices();
+  });
+
+  document.querySelector<HTMLSelectElement>('#camera-device')?.addEventListener('change', (event) => {
+    window.localStorage.setItem(CAMERA_DEVICE_STORAGE_KEY, (event.target as HTMLSelectElement).value);
+  });
+
+  document.querySelector('#capture-camera-frame')?.addEventListener('click', () => {
+    void captureCameraFrame();
+  });
+
+  document.querySelector('#capture-clean-mat-frame')?.addEventListener('click', () => {
+    void captureCleanMatFrame();
+  });
+
+  document.querySelectorAll<HTMLButtonElement>('[data-projector-mode]').forEach((button) => {
+    button.addEventListener('click', () => {
+      state.projectorMode = button.dataset.projectorMode as ProjectorOutputMode;
+      publish();
+    });
+  });
+
+  video.addEventListener('loadedmetadata', () => {
+    updateCameraEvidenceFromStream('');
+    syncCameraButtons();
+    renderCameraEvidence();
+  });
+
   document.querySelector('#auto-detect-grid')?.addEventListener('click', () => {
     void autoDetectSelectedImage();
   });
@@ -216,8 +289,15 @@ function bindControls(): void {
     publish();
   });
 
+  document.querySelector('#seed-manual-grid')?.addEventListener('click', () => {
+    seedManualGridHandles();
+  });
+
   document.querySelector('#clear-detected-grid')?.addEventListener('click', () => {
     loadedSampleImage = null;
+    loadedImageKind = null;
+    loadedImageSourceName = '';
+    loadedImageSourceUrl = '';
     state.detectedGrid = null;
     state.projectionAlignment = null;
     state.projectionAlignmentIssue = null;
@@ -231,7 +311,7 @@ function bindControls(): void {
     if (!file) return;
     if (uploadedObjectUrl) URL.revokeObjectURL(uploadedObjectUrl);
     uploadedObjectUrl = URL.createObjectURL(file);
-    void runGridDetection(file.name, uploadedObjectUrl);
+    void runGridDetection(file.name, uploadedObjectUrl, { kind: 'upload' });
   });
 
   previewCanvas.addEventListener('pointerdown', (event) => {
@@ -316,6 +396,9 @@ function syncControls(): void {
   document.querySelectorAll<HTMLButtonElement>('[data-source-scale]').forEach((button) => {
     button.classList.toggle('selected', Number(button.dataset.sourceScale) === state.sourceSquareFeet);
   });
+  document.querySelectorAll<HTMLButtonElement>('[data-projector-mode]').forEach((button) => {
+    button.classList.toggle('selected', button.dataset.projectorMode === state.projectorMode);
+  });
 
   setInputValue('#brightness', String(state.brightness));
   setInputChecked('#show-physical-grid', state.showPhysicalGrid);
@@ -327,8 +410,23 @@ function syncControls(): void {
   setInputValue('#failure-modes', state.evidence.failureModes);
   renderDetectionStatus();
   renderAlignmentStatus();
+  renderCameraEvidence();
   syncApplyButton();
+  syncCameraButtons();
+  syncManualSeedButton();
   renderAnchorTable();
+}
+
+function syncCameraButtons(): void {
+  const disabled = !cameraActive || !stream || video.readyState < 2 || video.videoWidth <= 0 || video.videoHeight <= 0;
+  document.querySelectorAll<HTMLButtonElement>('#capture-camera-frame, #capture-clean-mat-frame').forEach((button) => {
+    button.disabled = disabled;
+  });
+}
+
+function syncManualSeedButton(): void {
+  const seedButton = document.querySelector<HTMLButtonElement>('#seed-manual-grid');
+  if (seedButton) seedButton.disabled = !loadedSampleImage;
 }
 
 function syncApplyButton(): void {
@@ -392,7 +490,9 @@ function render(): void {
   const mode = document.querySelector<HTMLParagraphElement>('#preview-mode');
   if (mode) {
     mode.textContent = loadedSampleImage
-      ? 'False camera input with detected grid overlay'
+      ? loadedImageKind === 'camera'
+        ? 'Captured camera frame with detected grid overlay'
+        : 'False camera input with detected grid overlay'
       : cameraActive ? 'Live camera preview with projected overlay' : 'Synthetic mat preview';
   }
 
@@ -415,23 +515,22 @@ function publish(): void {
 
 async function toggleCamera(): Promise<void> {
   if (cameraActive) {
-    stream?.getTracks().forEach((track) => track.stop());
-    stream = null;
-    cameraActive = false;
-    video.srcObject = null;
-    video.classList.remove('active');
+    stopCamera();
     setButtonText('#camera-toggle', 'Start Camera');
+    syncCameraButtons();
     render();
     return;
   }
 
   try {
+    const networkCamera = selectedNetworkCamera();
+    if (networkCamera) {
+      await startNetworkCamera(networkCamera);
+      return;
+    }
+
     stream = await navigator.mediaDevices.getUserMedia({
-      video: {
-        facingMode: 'environment',
-        width: { ideal: 1280 },
-        height: { ideal: 720 },
-      },
+      video: cameraVideoConstraints(),
       audio: false,
     });
     video.srcObject = stream;
@@ -439,29 +538,327 @@ async function toggleCamera(): Promise<void> {
     cameraActive = true;
     video.classList.add('active');
     setButtonText('#camera-toggle', 'Stop Camera');
+    updateCameraEvidenceFromStream('');
+    await refreshCameraDevices();
+    syncCameraButtons();
+    channel.publish(state);
     render();
   } catch (error) {
     cameraActive = false;
+    syncCameraButtons();
     window.alert(`Camera unavailable: ${(error as Error).message}`);
   }
+}
+
+function stopCamera(): void {
+  if (networkCameraTimer !== null) {
+    window.clearInterval(networkCameraTimer);
+    networkCameraTimer = null;
+  }
+  stream?.getTracks().forEach((track) => track.stop());
+  stream = null;
+  cameraActive = false;
+  networkCameraActive = false;
+  networkCameraCanvas = null;
+  networkFrameInFlight = false;
+  video.srcObject = null;
+  video.classList.remove('active');
+}
+
+function cameraVideoConstraints(): MediaTrackConstraints {
+  const deviceId = document.querySelector<HTMLSelectElement>('#camera-device')?.value;
+  const base: MediaTrackConstraints = {
+    width: { ideal: 1280 },
+    height: { ideal: 720 },
+  };
+
+  return deviceId
+    ? { ...base, deviceId: { exact: deviceId } }
+    : { ...base, facingMode: { ideal: 'environment' } };
+}
+
+async function refreshCameraDevices(): Promise<void> {
+  const select = document.querySelector<HTMLSelectElement>('#camera-device');
+  if (!select) return;
+
+  const preferredDeviceId = select.value || window.localStorage.getItem(CAMERA_DEVICE_STORAGE_KEY) || '';
+  const devices = navigator.mediaDevices?.enumerateDevices
+    ? (await navigator.mediaDevices.enumerateDevices()).filter((device) => device.kind === 'videoinput')
+    : [];
+  networkCameraSources = await fetchNetworkCameraSources();
+  select.replaceChildren();
+  select.append(optionForCamera('', 'Default camera'));
+
+  devices.forEach((device, index) => {
+    const label = device.label || `Camera ${index + 1}`;
+    select.append(optionForCamera(device.deviceId, label));
+  });
+
+  networkCameraSources.forEach((camera) => {
+    select.append(optionForCamera(networkCameraValue(camera.id), camera.label));
+  });
+
+  const preferredNetwork = preferredDeviceId.startsWith(NETWORK_CAMERA_PREFIX)
+    && networkCameraSources.some((camera) => networkCameraValue(camera.id) === preferredDeviceId);
+  if (preferredDeviceId && (devices.some((device) => device.deviceId === preferredDeviceId) || preferredNetwork)) {
+    select.value = preferredDeviceId;
+  }
+}
+
+function optionForCamera(value: string, label: string): HTMLOptionElement {
+  const option = document.createElement('option');
+  option.value = value;
+  option.textContent = label;
+  return option;
+}
+
+async function fetchNetworkCameraSources(): Promise<NetworkCameraSource[]> {
+  try {
+    const response = await fetch('/__network-cameras', { cache: 'no-store' });
+    if (!response.ok) return [];
+    const payload = await response.json() as { cameras?: NetworkCameraSource[] };
+    return Array.isArray(payload.cameras)
+      ? payload.cameras.filter((camera) => (
+          camera
+          && typeof camera.id === 'string'
+          && typeof camera.label === 'string'
+        ))
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+function selectedNetworkCamera(): NetworkCameraSource | null {
+  const select = document.querySelector<HTMLSelectElement>('#camera-device');
+  const value = select?.value ?? '';
+  if (!value.startsWith(NETWORK_CAMERA_PREFIX)) return null;
+  const id = value.slice(NETWORK_CAMERA_PREFIX.length);
+  return networkCameraSources.find((camera) => camera.id === id) ?? null;
+}
+
+function networkCameraValue(id: string): string {
+  return `${NETWORK_CAMERA_PREFIX}${id}`;
+}
+
+async function startNetworkCamera(camera: NetworkCameraSource): Promise<void> {
+  stopCamera();
+  const canvas = document.createElement('canvas');
+  await drawNetworkCameraFrame(camera, canvas);
+  networkCameraCanvas = canvas;
+  stream = canvas.captureStream(4);
+  video.srcObject = stream;
+  await video.play();
+  cameraActive = true;
+  networkCameraActive = true;
+  video.classList.add('active');
+  setButtonText('#camera-toggle', 'Stop Camera');
+  updateCameraEvidenceFromStream('');
+  syncCameraButtons();
+  channel.publish(state);
+  render();
+
+  networkCameraTimer = window.setInterval(() => {
+    void drawNetworkCameraFrame(camera, canvas);
+  }, 500);
+}
+
+async function drawNetworkCameraFrame(camera: NetworkCameraSource, canvas: HTMLCanvasElement): Promise<void> {
+  if (networkFrameInFlight) return;
+  networkFrameInFlight = true;
+  try {
+    const response = await fetch(`/__network-camera-capture?id=${encodeURIComponent(camera.id)}&t=${Date.now()}`, {
+      cache: 'no-store',
+    });
+    if (!response.ok) {
+      throw new Error(await response.text());
+    }
+    const image = await loadImageBlob(await response.blob());
+    canvas.width = image.naturalWidth;
+    canvas.height = image.naturalHeight;
+    const context = canvas.getContext('2d');
+    if (!context) throw new Error('Network camera canvas unavailable.');
+    context.drawImage(image, 0, 0);
+    syncCameraButtons();
+  } finally {
+    networkFrameInFlight = false;
+  }
+}
+
+function loadImageBlob(blob: Blob): Promise<HTMLImageElement> {
+  return new Promise((resolveImage, reject) => {
+    const image = new Image();
+    const objectUrl = URL.createObjectURL(blob);
+    image.onload = () => {
+      URL.revokeObjectURL(objectUrl);
+      resolveImage(image);
+    };
+    image.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      reject(new Error('Network camera returned an undecodable image.'));
+    };
+    image.src = objectUrl;
+  });
+}
+
+async function captureCameraFrame(): Promise<void> {
+  const frame = captureVideoStill('camera-frame');
+  if (!frame) return;
+
+  updateCameraEvidenceFromStream(frame.sourceName, frame.capturedAt.toISOString());
+  syncControls();
+  await delay(0);
+  await runGridDetection(frame.sourceName, frame.dataUrl, { kind: 'camera' });
+}
+
+async function captureCleanMatFrame(): Promise<void> {
+  if (!canCaptureCameraFrame()) {
+    window.alert('Start the camera before capturing a clean mat frame.');
+    return;
+  }
+
+  const restoreMode: ProjectorOutputMode = 'alignment';
+  state.projectorMode = 'blank';
+  setDetectionStatus('Projector blanking for clean mat capture...');
+  channel.publish(state);
+  syncControls();
+  render();
+
+  await delay(PROJECTOR_BLANK_CAPTURE_DELAY_MS);
+  const frame = captureVideoStill('clean-mat-frame');
+  if (!frame) {
+    state.projectorMode = restoreMode;
+    publish();
+    return;
+  }
+
+  updateCameraEvidenceFromStream(frame.sourceName, frame.capturedAt.toISOString());
+  state.projectorMode = restoreMode;
+  channel.publish(state);
+  syncControls();
+  render();
+  await runGridDetection(frame.sourceName, frame.dataUrl, { kind: 'camera' });
+}
+
+function canCaptureCameraFrame(): boolean {
+  return Boolean(stream && cameraActive && video.videoWidth > 0 && video.videoHeight > 0);
+}
+
+function captureVideoStill(prefix: string): {
+  sourceName: string;
+  dataUrl: string;
+  capturedAt: Date;
+} | null {
+  if (!stream || !cameraActive || video.videoWidth <= 0 || video.videoHeight <= 0) {
+    window.alert('Start the camera before capturing a calibration frame.');
+    return null;
+  }
+
+  const canvas = document.createElement('canvas');
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+  const context = canvas.getContext('2d');
+  if (!context) {
+    window.alert('Could not capture the current camera frame.');
+    return null;
+  }
+
+  context.drawImage(video, 0, 0, canvas.width, canvas.height);
+  const capturedAt = new Date();
+  const sourceName = `${prefix}-${capturedAt.toISOString().replace(/[:.]/g, '-')}.jpg`;
+  const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
+  return { sourceName, dataUrl, capturedAt };
+}
+
+function updateCameraEvidenceFromStream(capturedFrameName: string, capturedAt = ''): void {
+  const track = stream?.getVideoTracks()[0];
+  const settings = track?.getSettings();
+  const selectedLabel = selectedCameraLabel();
+  state.evidence.camera = {
+    deviceLabel: selectedLabel !== 'Default camera' ? selectedLabel : track?.label || selectedLabel,
+    streamWidth: Number(settings?.width || video.videoWidth || networkCameraCanvas?.width || 0),
+    streamHeight: Number(settings?.height || video.videoHeight || networkCameraCanvas?.height || 0),
+    capturedFrameName: capturedFrameName || state.evidence.camera?.capturedFrameName || '',
+    capturedAt: capturedAt || state.evidence.camera?.capturedAt || '',
+  };
+}
+
+function selectedCameraLabel(): string {
+  const select = document.querySelector<HTMLSelectElement>('#camera-device');
+  return select?.selectedOptions[0]?.textContent || 'Default camera';
+}
+
+function seedManualGridHandles(): void {
+  if (!loadedSampleImage) {
+    window.alert('Capture or load a frame before placing manual grid handles.');
+    return;
+  }
+
+  state.detectedGrid = {
+    sourceName: loadedImageSourceName || 'manual-grid-seed',
+    sourceUrl: loadedImageSourceUrl || loadedSampleImage.src,
+    imageWidth: loadedSampleImage.naturalWidth,
+    imageHeight: loadedSampleImage.naturalHeight,
+    corners: manualSeedCorners(loadedSampleImage, loadedImageKind),
+    columns: 12,
+    rows: 8,
+    confidence: 0.2,
+    latticeScore: 0,
+    families: [
+      { angleDegrees: 0, lineCount: 13, score: 0 },
+      { angleDegrees: 90, lineCount: 9, score: 0 },
+    ],
+    detectedAt: new Date().toISOString(),
+    message: 'Manual seed handles placed. Drag the orange corners onto the real grid, then force apply or keep adjusting.',
+  };
+  state.projectionAlignment = null;
+  state.projectionAlignmentIssue = 'Manual correction required: manual seed handles need to be aligned before projection anchors are trusted.';
+  publish();
+}
+
+function manualSeedCorners(
+  image: HTMLImageElement,
+  kind: typeof loadedImageKind,
+): [Point, Point, Point, Point] {
+  const cameraFrame = kind === 'camera';
+  const left = image.naturalWidth * (cameraFrame ? 0.18 : 0.15);
+  const right = image.naturalWidth * (cameraFrame ? 0.88 : 0.85);
+  const top = image.naturalHeight * (cameraFrame ? 0.52 : 0.18);
+  const bottom = image.naturalHeight * (cameraFrame ? 0.92 : 0.82);
+  return [
+    { x: left, y: top },
+    { x: right, y: top },
+    { x: right, y: bottom },
+    { x: left, y: bottom },
+  ];
 }
 
 async function autoDetectSelectedImage(): Promise<void> {
   const select = document.querySelector<HTMLSelectElement>('#sample-image');
   const sample = sampleImages[Number(select?.value ?? 0)] ?? sampleImages[0];
-  await runGridDetection(sample.label, sample.url);
+  await runGridDetection(sample.label, sample.url, { kind: 'sample' });
 }
 
-async function runGridDetection(sourceName: string, sourceUrl: string): Promise<void> {
+async function runGridDetection(
+  sourceName: string,
+  sourceUrl: string,
+  options: { kind: 'sample' | 'upload' | 'camera' } = { kind: 'sample' },
+): Promise<void> {
   try {
     state.detectedGrid = null;
     state.projectionAlignment = null;
     state.projectionAlignmentIssue = null;
+    loadedSampleImage = null;
+    loadedImageKind = options.kind;
+    loadedImageSourceName = sourceName;
+    loadedImageSourceUrl = sourceUrl;
     setDetectionStatus('Analyzing image...');
     setAlignmentStatus('Projection not aligned to a detected grid yet.');
-    channel.publish(state);
-    render();
+    publish();
+    await delay(0);
     loadedSampleImage = await loadImage(sourceUrl);
+    render();
+    await delay(0);
     state.detectedGrid = await detectGridFromImage(loadedSampleImage, sourceName, sourceUrl);
     applyDetectedGridToProjection('Auto-aligned projection anchors from detected grid bounds.');
     publish();
@@ -473,6 +870,7 @@ async function runGridDetection(sourceName: string, sourceUrl: string): Promise<
     render();
     setDetectionStatus(`Detection failed: ${(error as Error).message}`);
     setAlignmentStatus('Projection not aligned to a detected grid yet.');
+    syncManualSeedButton();
   }
 }
 
@@ -480,9 +878,17 @@ async function restoreDetectedImage(): Promise<void> {
   if (!state.detectedGrid) return;
   try {
     loadedSampleImage = await loadImage(state.detectedGrid.sourceUrl);
+    loadedImageKind = state.detectedGrid.sourceName.startsWith('camera-frame-') || state.detectedGrid.sourceName.startsWith('clean-mat-frame-')
+      ? 'camera'
+      : 'sample';
+    loadedImageSourceName = state.detectedGrid.sourceName;
+    loadedImageSourceUrl = state.detectedGrid.sourceUrl;
     render();
   } catch {
     state.detectedGrid = null;
+    loadedImageKind = null;
+    loadedImageSourceName = '';
+    loadedImageSourceUrl = '';
     render();
   }
 }
@@ -714,6 +1120,25 @@ function renderAlignmentStatus(): void {
   );
 }
 
+function renderCameraEvidence(): void {
+  const element = document.querySelector<HTMLParagraphElement>('#camera-evidence');
+  if (!element) return;
+
+  if (!state.evidence.camera) {
+    element.textContent = 'No camera frame captured yet.';
+    return;
+  }
+
+  const camera = state.evidence.camera;
+  const resolution = camera.streamWidth && camera.streamHeight
+    ? `${camera.streamWidth} x ${camera.streamHeight}`
+    : 'unknown resolution';
+  const frame = camera.capturedFrameName
+    ? ` Last captured frame: ${camera.capturedFrameName}.`
+    : '';
+  element.textContent = `Camera: ${camera.deviceLabel || 'Default camera'} at ${resolution}.${frame}`;
+}
+
 function setDetectionStatus(message: string, type: 'neutral' | 'success' | 'warning' = 'neutral'): void {
   const status = document.querySelector<HTMLParagraphElement>('#detection-status');
   if (!status) return;
@@ -783,4 +1208,8 @@ function setButtonText(selector: string, text: string): void {
 
 function format(value: number): string {
   return Number.isInteger(value) ? String(value) : value.toFixed(2);
+}
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
 }

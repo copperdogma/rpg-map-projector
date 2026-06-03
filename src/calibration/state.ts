@@ -9,6 +9,7 @@ export const defaultState: CalibrationState = {
     width: 1280,
     height: 800,
   },
+  projectorMode: 'alignment',
   sourceSquareFeet: 5,
   showCalibrationPoints: true,
   showPhysicalGrid: true,
@@ -29,6 +30,7 @@ export const defaultState: CalibrationState = {
     measuredErrorInches: 0,
     placementNotes: '',
     failureModes: '',
+    camera: null,
   },
 };
 
@@ -127,6 +129,7 @@ function normalizeState(input: Partial<CalibrationState>): CalibrationState {
     ...cloneState(defaultState),
     ...input,
     projector: { ...defaultState.projector, ...input.projector },
+    projectorMode: input.projectorMode === 'blank' ? 'blank' : 'alignment',
     detectedGrid: input.detectedGrid ?? null,
     projectionAlignment: input.projectionAlignment ?? null,
     projectionAlignmentIssue: input.projectionAlignmentIssue ?? null,
