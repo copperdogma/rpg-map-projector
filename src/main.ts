@@ -30,6 +30,7 @@ let cameraActive = false;
 let stream: MediaStream | null = null;
 let networkCameraActive = false;
 let networkCameraCanvas: HTMLCanvasElement | null = null;
+let activeNetworkCamera: NetworkCameraSource | null = null;
 let networkCameraTimer: number | null = null;
 let networkFrameInFlight = false;
 let loadedSampleImage: HTMLImageElement | null = null;
@@ -42,14 +43,30 @@ let dragCornerIndex: number | null = null;
 const CAMERA_DEVICE_STORAGE_KEY = 'rpg-map-projector:selected-camera-device';
 const NETWORK_CAMERA_PREFIX = 'network:';
 const PROJECTOR_BLANK_CAPTURE_DELAY_MS = 700;
+const NETWORK_DETECTION_CAPTURE_ATTEMPTS = 5;
+const NETWORK_DETECTION_CAPTURE_RETRY_MS = 350;
 
 interface NetworkCameraSource {
   id: string;
   label: string;
   baseUrl: string;
+  rotationDegrees?: number;
+  detectionCapturePath?: string;
+}
+
+interface FrameDiagnostics {
+  meanLuma: number;
+  contrast: number;
+  quality: 'usable' | 'too-dark' | 'low-contrast';
+}
+
+interface GatewaySeedOption {
+  label: string;
+  grid: DetectedGrid;
 }
 
 let networkCameraSources: NetworkCameraSource[] = [];
+let gatewaySeedOptions: GatewaySeedOption[] = [];
 
 const app = document.querySelector<HTMLDivElement>('#app');
 if (!app) throw new Error('Missing app root');
@@ -92,6 +109,11 @@ app.innerHTML = `
           <button class="button primary" id="capture-camera-frame" type="button" disabled>Capture & Detect Frame</button>
           <button class="button primary" id="capture-clean-mat-frame" type="button" disabled>Blank & Capture Mat</button>
         </div>
+        <div class="network-camera-controls" aria-label="Network camera tuning">
+          <button class="button compact" id="camera-bright-preset" type="button" disabled>Boost Low Light</button>
+          <button class="button compact" id="camera-default-preset" type="button" disabled>Camera Defaults</button>
+          <span id="camera-control-status">Network camera controls unavailable.</span>
+        </div>
         <div class="projector-mode-controls" aria-label="Projector output">
           <span>Projector output</span>
           <button class="segment" data-projector-mode="blank" type="button">Blank</button>
@@ -125,10 +147,12 @@ app.innerHTML = `
           <div class="button-row">
             <button class="button primary" id="auto-detect-grid" type="button">Auto Detect Grid</button>
             <button class="button" id="apply-detected-grid" type="button">Apply To Projector</button>
+            <button class="button" id="gateway-seed-grid" type="button">Gateway Seed Candidate</button>
             <button class="button" id="seed-manual-grid" type="button">Manual Seed Handles</button>
             <button class="button" id="clear-detected-grid" type="button">Clear Image</button>
           </div>
           <p class="detection-status" id="detection-status">No image analyzed yet.</p>
+          <div class="gateway-candidates" id="gateway-candidates" aria-label="Gateway seed candidates" hidden></div>
           <p class="alignment-status" id="alignment-status">Projection not aligned to a detected grid yet.</p>
         </section>
 
@@ -251,8 +275,17 @@ function bindControls(): void {
     void refreshCameraDevices();
   });
 
+  document.querySelector('#camera-bright-preset')?.addEventListener('click', () => {
+    void applyNetworkCameraPreset('bright-mat');
+  });
+
+  document.querySelector('#camera-default-preset')?.addEventListener('click', () => {
+    void applyNetworkCameraPreset('default');
+  });
+
   document.querySelector<HTMLSelectElement>('#camera-device')?.addEventListener('change', (event) => {
     window.localStorage.setItem(CAMERA_DEVICE_STORAGE_KEY, (event.target as HTMLSelectElement).value);
+    syncNetworkCameraControls();
   });
 
   document.querySelector('#capture-camera-frame')?.addEventListener('click', () => {
@@ -280,6 +313,16 @@ function bindControls(): void {
     void autoDetectSelectedImage();
   });
 
+  document.querySelector('#gateway-seed-grid')?.addEventListener('click', () => {
+    void runGatewaySeedCandidate();
+  });
+
+  document.querySelector('#gateway-candidates')?.addEventListener('click', (event) => {
+    const button = (event.target as HTMLElement).closest<HTMLButtonElement>('button[data-gateway-candidate-index]');
+    if (!button) return;
+    selectGatewaySeedOption(Number(button.dataset.gatewayCandidateIndex));
+  });
+
   document.querySelector('#apply-detected-grid')?.addEventListener('click', () => {
     if (!state.detectedGrid) {
       setAlignmentStatus('Run auto detection before applying a grid to the projector.');
@@ -298,6 +341,7 @@ function bindControls(): void {
     loadedImageKind = null;
     loadedImageSourceName = '';
     loadedImageSourceUrl = '';
+    gatewaySeedOptions = [];
     state.detectedGrid = null;
     state.projectionAlignment = null;
     state.projectionAlignmentIssue = null;
@@ -411,6 +455,8 @@ function syncControls(): void {
   renderDetectionStatus();
   renderAlignmentStatus();
   renderCameraEvidence();
+  syncNetworkCameraControls();
+  renderGatewaySeedOptions();
   syncApplyButton();
   syncCameraButtons();
   syncManualSeedButton();
@@ -424,9 +470,25 @@ function syncCameraButtons(): void {
   });
 }
 
+function syncNetworkCameraControls(message?: string): void {
+  const networkCamera = selectedNetworkCamera();
+  const disabled = !networkCamera;
+  document.querySelectorAll<HTMLButtonElement>('#camera-bright-preset, #camera-default-preset').forEach((button) => {
+    button.disabled = disabled;
+  });
+  const status = document.querySelector<HTMLSpanElement>('#camera-control-status');
+  if (status) {
+    status.textContent = message ?? (networkCamera
+      ? 'ESP32 tuning controls target the selected network camera.'
+      : 'Network camera controls unavailable.');
+  }
+}
+
 function syncManualSeedButton(): void {
   const seedButton = document.querySelector<HTMLButtonElement>('#seed-manual-grid');
   if (seedButton) seedButton.disabled = !loadedSampleImage;
+  const gatewaySeedButton = document.querySelector<HTMLButtonElement>('#gateway-seed-grid');
+  if (gatewaySeedButton) gatewaySeedButton.disabled = !loadedSampleImage;
 }
 
 function syncApplyButton(): void {
@@ -560,6 +622,7 @@ function stopCamera(): void {
   cameraActive = false;
   networkCameraActive = false;
   networkCameraCanvas = null;
+  activeNetworkCamera = null;
   networkFrameInFlight = false;
   video.srcObject = null;
   video.classList.remove('active');
@@ -629,6 +692,11 @@ async function fetchNetworkCameraSources(): Promise<NetworkCameraSource[]> {
   }
 }
 
+function cameraRotationDegrees(camera: NetworkCameraSource): 0 | 90 | 180 | 270 {
+  const degrees = Number(camera.rotationDegrees ?? 0);
+  return degrees === 90 || degrees === 180 || degrees === 270 ? degrees : 0;
+}
+
 function selectedNetworkCamera(): NetworkCameraSource | null {
   const select = document.querySelector<HTMLSelectElement>('#camera-device');
   const value = select?.value ?? '';
@@ -644,8 +712,9 @@ function networkCameraValue(id: string): string {
 async function startNetworkCamera(camera: NetworkCameraSource): Promise<void> {
   stopCamera();
   const canvas = document.createElement('canvas');
-  await drawNetworkCameraFrame(camera, canvas);
+  await drawNetworkCameraFrame(camera, canvas, { waitForFreshFrame: true });
   networkCameraCanvas = canvas;
+  activeNetworkCamera = camera;
   stream = canvas.captureStream(4);
   video.srcObject = stream;
   await video.play();
@@ -663,26 +732,65 @@ async function startNetworkCamera(camera: NetworkCameraSource): Promise<void> {
   }, 500);
 }
 
-async function drawNetworkCameraFrame(camera: NetworkCameraSource, canvas: HTMLCanvasElement): Promise<void> {
-  if (networkFrameInFlight) return;
+async function drawNetworkCameraFrame(
+  camera: NetworkCameraSource,
+  canvas: HTMLCanvasElement,
+  options: { waitForFreshFrame?: boolean; captureMode?: 'preview' | 'detection' } = {},
+): Promise<FrameDiagnostics | null> {
+  if (networkFrameInFlight && !options.waitForFreshFrame) return null;
+  while (networkFrameInFlight) {
+    await delay(25);
+  }
   networkFrameInFlight = true;
   try {
-    const response = await fetch(`/__network-camera-capture?id=${encodeURIComponent(camera.id)}&t=${Date.now()}`, {
-      cache: 'no-store',
-    });
-    if (!response.ok) {
-      throw new Error(await response.text());
+    const mode = options.captureMode === 'detection' ? '&mode=detection' : '';
+    const attempts = options.captureMode === 'detection' ? NETWORK_DETECTION_CAPTURE_ATTEMPTS : 1;
+    let diagnostics: FrameDiagnostics | null = null;
+
+    for (let attempt = 0; attempt < attempts; attempt += 1) {
+      const response = await fetch(`/__network-camera-capture?id=${encodeURIComponent(camera.id)}${mode}&t=${Date.now()}`, {
+        cache: 'no-store',
+      });
+      if (!response.ok) {
+        throw new Error(await response.text());
+      }
+      const image = await loadImageBlob(await response.blob());
+      const rotationDegrees = cameraRotationDegrees(camera);
+      const isSideways = rotationDegrees === 90 || rotationDegrees === 270;
+      canvas.width = isSideways ? image.naturalHeight : image.naturalWidth;
+      canvas.height = isSideways ? image.naturalWidth : image.naturalHeight;
+      const context = canvas.getContext('2d');
+      if (!context) throw new Error('Network camera canvas unavailable.');
+      drawNetworkCameraImage(context, image, rotationDegrees);
+      diagnostics = measureFrameDiagnostics(context, canvas.width, canvas.height);
+      if (options.captureMode !== 'detection' || diagnostics.quality === 'usable') break;
+      if (attempt < attempts - 1) await delay(NETWORK_DETECTION_CAPTURE_RETRY_MS);
     }
-    const image = await loadImageBlob(await response.blob());
-    canvas.width = image.naturalWidth;
-    canvas.height = image.naturalHeight;
-    const context = canvas.getContext('2d');
-    if (!context) throw new Error('Network camera canvas unavailable.');
-    context.drawImage(image, 0, 0);
     syncCameraButtons();
+    return diagnostics;
   } finally {
     networkFrameInFlight = false;
   }
+}
+
+function drawNetworkCameraImage(
+  context: CanvasRenderingContext2D,
+  image: HTMLImageElement,
+  rotationDegrees: 0 | 90 | 180 | 270,
+): void {
+  context.save();
+  if (rotationDegrees === 90) {
+    context.translate(image.naturalHeight, 0);
+    context.rotate(Math.PI / 2);
+  } else if (rotationDegrees === 180) {
+    context.translate(image.naturalWidth, image.naturalHeight);
+    context.rotate(Math.PI);
+  } else if (rotationDegrees === 270) {
+    context.translate(0, image.naturalWidth);
+    context.rotate(-Math.PI / 2);
+  }
+  context.drawImage(image, 0, 0);
+  context.restore();
 }
 
 function loadImageBlob(blob: Blob): Promise<HTMLImageElement> {
@@ -702,10 +810,17 @@ function loadImageBlob(blob: Blob): Promise<HTMLImageElement> {
 }
 
 async function captureCameraFrame(): Promise<void> {
+  try {
+    await refreshActiveNetworkCameraFrame('detection');
+  } catch (error) {
+    setDetectionStatus(`Camera refresh failed: ${errorMessage(error)}`, 'warning');
+    return;
+  }
+
   const frame = captureVideoStill('camera-frame');
   if (!frame) return;
 
-  updateCameraEvidenceFromStream(frame.sourceName, frame.capturedAt.toISOString());
+  updateCameraEvidenceFromStream(frame.sourceName, frame.capturedAt.toISOString(), frame.diagnostics);
   syncControls();
   await delay(0);
   await runGridDetection(frame.sourceName, frame.dataUrl, { kind: 'camera' });
@@ -724,19 +839,23 @@ async function captureCleanMatFrame(): Promise<void> {
   syncControls();
   render();
 
-  await delay(PROJECTOR_BLANK_CAPTURE_DELAY_MS);
-  const frame = captureVideoStill('clean-mat-frame');
-  if (!frame) {
+  let frame: ReturnType<typeof captureVideoStill> = null;
+  try {
+    await delay(PROJECTOR_BLANK_CAPTURE_DELAY_MS);
+    await refreshActiveNetworkCameraFrame('detection');
+    frame = captureVideoStill('clean-mat-frame');
+  } catch (error) {
+    setDetectionStatus(`Clean mat capture failed: ${errorMessage(error)}`, 'warning');
+  } finally {
     state.projectorMode = restoreMode;
-    publish();
-    return;
+    channel.publish(state);
+    syncControls();
+    render();
   }
+  if (!frame) return;
 
-  updateCameraEvidenceFromStream(frame.sourceName, frame.capturedAt.toISOString());
-  state.projectorMode = restoreMode;
-  channel.publish(state);
+  updateCameraEvidenceFromStream(frame.sourceName, frame.capturedAt.toISOString(), frame.diagnostics);
   syncControls();
-  render();
   await runGridDetection(frame.sourceName, frame.dataUrl, { kind: 'camera' });
 }
 
@@ -744,10 +863,51 @@ function canCaptureCameraFrame(): boolean {
   return Boolean(stream && cameraActive && video.videoWidth > 0 && video.videoHeight > 0);
 }
 
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+async function refreshActiveNetworkCameraFrame(captureMode: 'preview' | 'detection' = 'preview'): Promise<void> {
+  if (!networkCameraActive || !activeNetworkCamera || !networkCameraCanvas) return;
+  const diagnostics = await drawNetworkCameraFrame(activeNetworkCamera, networkCameraCanvas, { waitForFreshFrame: true, captureMode });
+  if (captureMode === 'detection' && diagnostics?.quality !== 'usable') {
+    setDetectionStatus(
+      `Network camera frame is ${diagnostics?.quality ?? 'unavailable'} after warm-up; detection may refuse it.`,
+      'warning',
+    );
+  }
+  if (captureMode === 'detection') await delay(100);
+}
+
+async function applyNetworkCameraPreset(name: 'bright-mat' | 'default'): Promise<void> {
+  const camera = selectedNetworkCamera();
+  if (!camera) {
+    syncNetworkCameraControls('Select an ESP32 network camera before applying a preset.');
+    return;
+  }
+
+  const label = name === 'bright-mat' ? 'Boost Low Light' : 'Camera Defaults';
+  syncNetworkCameraControls(`Applying ${label}...`);
+  try {
+    const response = await fetch(`/__network-camera-preset?id=${encodeURIComponent(camera.id)}&name=${encodeURIComponent(name)}`, {
+      cache: 'no-store',
+    });
+    if (!response.ok) throw new Error(await response.text());
+    if (networkCameraActive) {
+      await refreshActiveNetworkCameraFrame('preview');
+      render();
+    }
+    syncNetworkCameraControls(`${label} applied.`);
+  } catch (error) {
+    syncNetworkCameraControls(`${label} failed: ${errorMessage(error)}`);
+  }
+}
+
 function captureVideoStill(prefix: string): {
   sourceName: string;
   dataUrl: string;
   capturedAt: Date;
+  diagnostics: FrameDiagnostics;
 } | null {
   if (!stream || !cameraActive || video.videoWidth <= 0 || video.videoHeight <= 0) {
     window.alert('Start the camera before capturing a calibration frame.');
@@ -755,31 +915,80 @@ function captureVideoStill(prefix: string): {
   }
 
   const canvas = document.createElement('canvas');
-  canvas.width = video.videoWidth;
-  canvas.height = video.videoHeight;
+  const sourceCanvas = networkCameraActive ? networkCameraCanvas : null;
+  canvas.width = sourceCanvas?.width || video.videoWidth;
+  canvas.height = sourceCanvas?.height || video.videoHeight;
   const context = canvas.getContext('2d');
   if (!context) {
     window.alert('Could not capture the current camera frame.');
     return null;
   }
 
-  context.drawImage(video, 0, 0, canvas.width, canvas.height);
+  if (sourceCanvas) context.drawImage(sourceCanvas, 0, 0, canvas.width, canvas.height);
+  else context.drawImage(video, 0, 0, canvas.width, canvas.height);
   const capturedAt = new Date();
   const sourceName = `${prefix}-${capturedAt.toISOString().replace(/[:.]/g, '-')}.jpg`;
+  const diagnostics = measureFrameDiagnostics(context, canvas.width, canvas.height);
   const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
-  return { sourceName, dataUrl, capturedAt };
+  return { sourceName, dataUrl, capturedAt, diagnostics };
 }
 
-function updateCameraEvidenceFromStream(capturedFrameName: string, capturedAt = ''): void {
+function measureFrameDiagnostics(
+  context: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+): FrameDiagnostics {
+  const data = context.getImageData(0, 0, width, height).data;
+  const step = Math.max(1, Math.floor(Math.sqrt((width * height) / 2400)));
+  let count = 0;
+  let sum = 0;
+  let sumSquares = 0;
+  for (let y = 0; y < height; y += step) {
+    for (let x = 0; x < width; x += step) {
+      const offset = (y * width + x) * 4;
+      const luma = data[offset] * 0.299 + data[offset + 1] * 0.587 + data[offset + 2] * 0.114;
+      sum += luma;
+      sumSquares += luma * luma;
+      count += 1;
+    }
+  }
+  const meanLuma = count > 0 ? sum / count : 0;
+  const variance = count > 0 ? Math.max(0, sumSquares / count - meanLuma * meanLuma) : 0;
+  const contrast = Math.sqrt(variance);
+  return {
+    meanLuma: Math.round(meanLuma * 10) / 10,
+    contrast: Math.round(contrast * 10) / 10,
+    quality: classifyFrameQuality(meanLuma, contrast),
+  };
+}
+
+function classifyFrameQuality(
+  meanLuma: number,
+  contrast: number,
+): FrameDiagnostics['quality'] {
+  if (meanLuma < 24 && contrast < 18) return 'too-dark';
+  if (contrast < 7) return 'low-contrast';
+  return 'usable';
+}
+
+function updateCameraEvidenceFromStream(
+  capturedFrameName: string,
+  capturedAt = '',
+  diagnostics?: FrameDiagnostics,
+): void {
   const track = stream?.getVideoTracks()[0];
   const settings = track?.getSettings();
   const selectedLabel = selectedCameraLabel();
   state.evidence.camera = {
     deviceLabel: selectedLabel !== 'Default camera' ? selectedLabel : track?.label || selectedLabel,
-    streamWidth: Number(settings?.width || video.videoWidth || networkCameraCanvas?.width || 0),
-    streamHeight: Number(settings?.height || video.videoHeight || networkCameraCanvas?.height || 0),
+    streamWidth: Number((networkCameraActive && networkCameraCanvas?.width) || settings?.width || video.videoWidth || 0),
+    streamHeight: Number((networkCameraActive && networkCameraCanvas?.height) || settings?.height || video.videoHeight || 0),
     capturedFrameName: capturedFrameName || state.evidence.camera?.capturedFrameName || '',
     capturedAt: capturedAt || state.evidence.camera?.capturedAt || '',
+    frameMeanLuma: diagnostics?.meanLuma ?? state.evidence.camera?.frameMeanLuma,
+    frameContrast: diagnostics?.contrast ?? state.evidence.camera?.frameContrast,
+    frameQuality: diagnostics?.quality ?? state.evidence.camera?.frameQuality,
+    frameRotationDegrees: activeNetworkCamera ? cameraRotationDegrees(activeNetworkCamera) : undefined,
   };
 }
 
@@ -794,6 +1003,7 @@ function seedManualGridHandles(): void {
     return;
   }
 
+  gatewaySeedOptions = [];
   state.detectedGrid = {
     sourceName: loadedImageSourceName || 'manual-grid-seed',
     sourceUrl: loadedImageSourceUrl || loadedSampleImage.src,
@@ -821,10 +1031,11 @@ function manualSeedCorners(
   kind: typeof loadedImageKind,
 ): [Point, Point, Point, Point] {
   const cameraFrame = kind === 'camera';
+  const portraitCameraFrame = cameraFrame && image.naturalHeight > image.naturalWidth;
   const left = image.naturalWidth * (cameraFrame ? 0.18 : 0.15);
   const right = image.naturalWidth * (cameraFrame ? 0.88 : 0.85);
-  const top = image.naturalHeight * (cameraFrame ? 0.52 : 0.18);
-  const bottom = image.naturalHeight * (cameraFrame ? 0.92 : 0.82);
+  const top = image.naturalHeight * (portraitCameraFrame ? 0.14 : cameraFrame ? 0.52 : 0.18);
+  const bottom = image.naturalHeight * (portraitCameraFrame ? 0.86 : cameraFrame ? 0.92 : 0.82);
   return [
     { x: left, y: top },
     { x: right, y: top },
@@ -845,6 +1056,7 @@ async function runGridDetection(
   options: { kind: 'sample' | 'upload' | 'camera' } = { kind: 'sample' },
 ): Promise<void> {
   try {
+    gatewaySeedOptions = [];
     state.detectedGrid = null;
     state.projectionAlignment = null;
     state.projectionAlignmentIssue = null;
@@ -863,6 +1075,7 @@ async function runGridDetection(
     applyDetectedGridToProjection('Auto-aligned projection anchors from detected grid bounds.');
     publish();
   } catch (error) {
+    gatewaySeedOptions = [];
     state.detectedGrid = null;
     state.projectionAlignment = null;
     state.projectionAlignmentIssue = null;
@@ -872,6 +1085,214 @@ async function runGridDetection(
     setAlignmentStatus('Projection not aligned to a detected grid yet.');
     syncManualSeedButton();
   }
+}
+
+async function runGatewaySeedCandidate(): Promise<void> {
+  if (!loadedSampleImage || !loadedImageSourceUrl) {
+    window.alert('Capture or load a frame before asking the gateway for a seed candidate.');
+    return;
+  }
+
+  try {
+    setDetectionStatus('Running gateway detector for a seed candidate...');
+    setAlignmentStatus('Projection not aligned to a detected grid yet.');
+    await delay(0);
+    const response = await fetch('/__opencv-detection-upload', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ imageDataUrl: imageToJpegDataUrl(loadedSampleImage) }),
+    });
+    if (!response.ok) {
+      throw new Error(await response.text());
+    }
+    const payload = await response.json() as OpenCvDetectionPayload;
+    if (!payload.detected) {
+      throw new Error(payload.errorMessage || 'Gateway detector did not find a grid candidate.');
+    }
+    gatewaySeedOptions = gatewaySeedOptionsFromPayload(payload);
+    if (gatewaySeedOptions.length === 0) {
+      throw new Error('Gateway detector did not return any usable candidates.');
+    }
+    state.detectedGrid = cloneDetectedGrid(gatewaySeedOptions[0].grid);
+    state.projectionAlignment = null;
+    state.projectionAlignmentIssue = 'Manual correction required: gateway detector candidate needs visual confirmation before projection anchors are trusted.';
+    publish();
+  } catch (error) {
+    setDetectionStatus(`Gateway seed failed: ${errorMessage(error)}`, 'warning');
+    setAlignmentStatus('Projection not aligned to a detected grid yet.');
+  }
+}
+
+interface OpenCvDetectionPayload {
+  detected?: boolean;
+  candidateId?: string;
+  sourceName?: string;
+  sourceUrl?: string;
+  imageWidth?: number;
+  imageHeight?: number;
+  corners?: Point[];
+  columns?: number;
+  rows?: number;
+  confidence?: number;
+  latticeScore?: number;
+  topCandidates?: GatewayCandidatePayload[];
+  detectorMessage?: string;
+  errorMessage?: string;
+}
+
+interface GatewayCandidatePayload {
+  score?: number;
+  variant?: string;
+  params?: number[];
+  columns?: number;
+  rows?: number;
+  inFrameFraction?: number;
+  areaRatio?: number;
+  offFrameRatio?: number;
+  corners?: Point[];
+  families?: GatewayCandidateFamilyPayload[];
+}
+
+interface GatewayCandidateFamilyPayload {
+  angleDeg?: number;
+  pitch?: number;
+  periodScore?: number;
+  lines?: number;
+}
+
+function gatewaySeedOptionsFromPayload(payload: OpenCvDetectionPayload): GatewaySeedOption[] {
+  const topCandidates = Array.isArray(payload.topCandidates)
+    ? payload.topCandidates.filter((candidate) => Array.isArray(candidate.corners) && candidate.corners.length === 4)
+    : [];
+
+  if (topCandidates.length === 0) {
+    return [
+      {
+        label: gatewaySeedLabel(payload, undefined, 0),
+        grid: detectedGridFromOpenCvPayload(payload),
+      },
+    ];
+  }
+
+  return topCandidates.map((candidate, index) => ({
+    label: gatewaySeedLabel(payload, candidate, index),
+    grid: detectedGridFromOpenCvPayload(payload, candidate, index),
+  }));
+}
+
+function gatewaySeedLabel(
+  payload: OpenCvDetectionPayload,
+  candidate: GatewayCandidatePayload | undefined,
+  index: number,
+): string {
+  const columns = Math.max(1, Math.round(Number(candidate?.columns ?? payload.columns ?? 12)));
+  const rows = Math.max(1, Math.round(Number(candidate?.rows ?? payload.rows ?? 8)));
+  const score = Number(candidate?.score);
+  const scoreText = Number.isFinite(score) ? `, score ${score.toFixed(2)}` : '';
+  return `Candidate ${index + 1}: ${columns} x ${rows}${scoreText}`;
+}
+
+function detectedGridFromOpenCvPayload(
+  payload: OpenCvDetectionPayload,
+  candidate?: GatewayCandidatePayload,
+  candidateIndex = 0,
+): DetectedGrid {
+  const corners = candidate?.corners ?? payload.corners;
+  if (!Array.isArray(corners) || corners.length !== 4) {
+    throw new Error('Gateway detector returned invalid corners.');
+  }
+  const columns = Math.max(1, Math.round(Number(candidate?.columns ?? payload.columns ?? 12)));
+  const rows = Math.max(1, Math.round(Number(candidate?.rows ?? payload.rows ?? 8)));
+  const confidence = candidate ? confidenceFromGatewayCandidate(candidate, payload) : Number(payload.confidence ?? 0.2);
+  const latticeScore = candidate ? latticeScoreFromGatewayCandidate(candidate, payload) : Number(payload.latticeScore ?? 0);
+  const candidateLabel = payload.candidateId === 'esp32-webcam-lattice-probe-v1'
+    ? 'Gateway ESP32 webcam seed candidate'
+    : 'Gateway OpenCV seed candidate';
+  const optionText = candidate
+    ? ` option ${candidateIndex + 1}: ${columns}x${rows}; score ${formatCandidateScore(candidate.score)}.`
+    : '.';
+  return {
+    sourceName: loadedImageSourceName || payload.sourceName || 'gateway-seed-candidate',
+    sourceUrl: loadedImageSourceUrl || payload.sourceUrl || '',
+    imageWidth: loadedSampleImage?.naturalWidth ?? Number(payload.imageWidth ?? 0),
+    imageHeight: loadedSampleImage?.naturalHeight ?? Number(payload.imageHeight ?? 0),
+    corners: corners.map((corner) => ({
+      x: Number(corner.x),
+      y: Number(corner.y),
+    })) as [Point, Point, Point, Point],
+    columns,
+    rows,
+    confidence,
+    latticeScore,
+    families: gatewayCandidateFamilies(candidate, columns, rows, confidence),
+    detectedAt: new Date().toISOString(),
+    message: `${candidateLabel}${optionText} ${payload.detectorMessage || 'Review and drag handles before applying.'}`,
+  };
+}
+
+function confidenceFromGatewayCandidate(candidate: GatewayCandidatePayload, payload: OpenCvDetectionPayload): number {
+  const score = Number(candidate.score);
+  if (Number.isFinite(score)) return Math.min(0.55, Math.max(0.2, score / 8));
+  return Number(payload.confidence ?? 0.2);
+}
+
+function latticeScoreFromGatewayCandidate(candidate: GatewayCandidatePayload, payload: OpenCvDetectionPayload): number {
+  const familyScores = candidate.families
+    ?.map((family) => Number(family.periodScore))
+    .filter((score) => Number.isFinite(score)) ?? [];
+  if (familyScores.length >= 2) {
+    return Math.min(0.5, Math.max(0, (familyScores[0] + familyScores[1]) / 4));
+  }
+  return Number(payload.latticeScore ?? 0);
+}
+
+function gatewayCandidateFamilies(
+  candidate: GatewayCandidatePayload | undefined,
+  columns: number,
+  rows: number,
+  confidence: number,
+): [DetectedGrid['families'][0], DetectedGrid['families'][1]] {
+  if (Array.isArray(candidate?.families) && candidate.families.length >= 2) {
+    return [
+      {
+        angleDegrees: Number(candidate.families[0].angleDeg ?? 0),
+        lineCount: Math.max(0, Math.round(Number(candidate.families[0].lines ?? columns + 1))),
+        score: Number(candidate.families[0].periodScore ?? confidence),
+      },
+      {
+        angleDegrees: Number(candidate.families[1].angleDeg ?? 90),
+        lineCount: Math.max(0, Math.round(Number(candidate.families[1].lines ?? rows + 1))),
+        score: Number(candidate.families[1].periodScore ?? confidence),
+      },
+    ];
+  }
+  return [
+    { angleDegrees: 0, lineCount: columns + 1, score: confidence },
+    { angleDegrees: 90, lineCount: rows + 1, score: confidence },
+  ];
+}
+
+function formatCandidateScore(score: unknown): string {
+  const numericScore = Number(score);
+  return Number.isFinite(numericScore) ? numericScore.toFixed(2) : 'n/a';
+}
+
+function selectGatewaySeedOption(index: number): void {
+  const option = gatewaySeedOptions[index];
+  if (!option) return;
+  state.detectedGrid = cloneDetectedGrid(option.grid);
+  state.projectionAlignment = null;
+  state.projectionAlignmentIssue = 'Manual correction required: gateway detector candidate needs visual confirmation before projection anchors are trusted.';
+  publish();
+}
+
+function cloneDetectedGrid(grid: DetectedGrid): DetectedGrid {
+  return {
+    ...grid,
+    corners: grid.corners.map((corner) => ({ ...corner })) as [Point, Point, Point, Point],
+    families: grid.families.map((family) => ({ ...family })) as DetectedGrid['families'],
+    detectedAt: new Date().toISOString(),
+  };
 }
 
 async function restoreDetectedImage(): Promise<void> {
@@ -901,6 +1322,16 @@ function loadImage(url: string): Promise<HTMLImageElement> {
     image.onerror = () => reject(new Error(`Could not load ${url}`));
     image.src = url;
   });
+}
+
+function imageToJpegDataUrl(image: HTMLImageElement): string {
+  const canvas = document.createElement('canvas');
+  canvas.width = image.naturalWidth;
+  canvas.height = image.naturalHeight;
+  const context = canvas.getContext('2d');
+  if (!context) throw new Error('Could not prepare image for gateway detection.');
+  context.drawImage(image, 0, 0);
+  return canvas.toDataURL('image/jpeg', 0.92);
 }
 
 function renderSampleImagePreview(): void {
@@ -1080,6 +1511,53 @@ function renderDetectionStatus(): void {
   );
 }
 
+function renderGatewaySeedOptions(): void {
+  const container = document.querySelector<HTMLDivElement>('#gateway-candidates');
+  if (!container) return;
+
+  if (gatewaySeedOptions.length <= 1 || !state.detectedGrid) {
+    container.hidden = true;
+    container.replaceChildren();
+    return;
+  }
+
+  const selectedIndex = selectedGatewaySeedOptionIndex();
+  container.hidden = false;
+  container.replaceChildren();
+
+  const heading = document.createElement('p');
+  heading.className = 'gateway-candidates-heading';
+  heading.textContent = 'Gateway candidates';
+  container.append(heading);
+
+  const row = document.createElement('div');
+  row.className = 'gateway-candidate-row';
+  gatewaySeedOptions.forEach((option, index) => {
+    const button = document.createElement('button');
+    button.className = 'button compact gateway-candidate-button';
+    if (index === selectedIndex) button.classList.add('selected');
+    button.type = 'button';
+    button.dataset.gatewayCandidateIndex = String(index);
+    button.textContent = option.label;
+    row.append(button);
+  });
+  container.append(row);
+}
+
+function selectedGatewaySeedOptionIndex(): number {
+  if (!state.detectedGrid) return -1;
+  const current = gatewayGridSignature(state.detectedGrid);
+  return gatewaySeedOptions.findIndex((option) => gatewayGridSignature(option.grid) === current);
+}
+
+function gatewayGridSignature(grid: DetectedGrid): string {
+  return [
+    grid.columns,
+    grid.rows,
+    ...grid.corners.flatMap((corner) => [Math.round(corner.x), Math.round(corner.y)]),
+  ].join(':');
+}
+
 function applyDetectedGridToProjection(message: string, options: { force?: boolean } = {}): void {
   if (!state.detectedGrid) {
     state.projectionAlignment = null;
@@ -1136,7 +1614,13 @@ function renderCameraEvidence(): void {
   const frame = camera.capturedFrameName
     ? ` Last captured frame: ${camera.capturedFrameName}.`
     : '';
-  element.textContent = `Camera: ${camera.deviceLabel || 'Default camera'} at ${resolution}.${frame}`;
+  const quality = camera.frameQuality
+    ? ` Frame luma ${camera.frameMeanLuma ?? '?'} / contrast ${camera.frameContrast ?? '?'}: ${camera.frameQuality}.`
+    : '';
+  const rotation = camera.frameRotationDegrees
+    ? ` Rotated ${camera.frameRotationDegrees} deg.`
+    : '';
+  element.textContent = `Camera: ${camera.deviceLabel || 'Default camera'} at ${resolution}.${frame}${rotation}${quality}`;
 }
 
 function setDetectionStatus(message: string, type: 'neutral' | 'success' | 'warning' = 'neutral'): void {

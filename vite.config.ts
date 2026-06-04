@@ -1,4 +1,5 @@
 import { execFile } from 'node:child_process';
+import { randomUUID } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { access, mkdir, readdir, readFile, stat, writeFile } from 'node:fs/promises';
 import { dirname, relative, resolve, sep } from 'node:path';
@@ -9,9 +10,11 @@ const root = dirname(fileURLToPath(import.meta.url));
 const labelFilePath = resolve(root, 'input/map-grid-labels.json');
 const fixtureImageDir = resolve(root, 'input/map-pix');
 const opencvBenchmarkScriptPath = resolve(root, 'scripts/opencv-fixture-benchmark.py');
+const esp32WebcamProbeScriptPath = resolve(root, 'scripts/esp32-webcam-lattice-probe.py');
 const aiGridReportPath = resolve(root, 'test-results/ai-dot-lattice-fit-risk-aware-summary-v1/report.json');
 const aiGridHybridReportPath = resolve(root, 'test-results/ai-grid-hybrid-prompt-ensemble-summary-v1/report.json');
 const aiGridParallelDir = resolve(root, 'test-results/ai-grid-parallel-current');
+const opencvUploadDir = resolve(root, 'test-results/live-opencv-upload');
 const networkCameraConfigPath = resolve(root, 'prototypes/esp32-s3-wifi-webcam/network-camera.local.json');
 const AI_GRID_SEED_MODES = ['grid-frame', 'supported', 'fit-span', 'manual-span-diagnostic', 'label-sized-diagnostic'] as const;
 const MIN_IMAGE_FRAME_BAND_OVERLAP = 0.10;
@@ -49,6 +52,11 @@ function fixtureLabelPlugin(): Plugin {
           return;
         }
 
+        if (requestUrl.pathname === '/__opencv-detection-upload') {
+          await handleOpenCvDetectionUploadRequest(request, response);
+          return;
+        }
+
         if (requestUrl.pathname === '/__ai-grid-seed') {
           await handleAiGridSeedRequest(requestUrl, response);
           return;
@@ -61,6 +69,11 @@ function fixtureLabelPlugin(): Plugin {
 
         if (requestUrl.pathname === '/__network-camera-capture') {
           await handleNetworkCameraCaptureRequest(requestUrl, response);
+          return;
+        }
+
+        if (requestUrl.pathname === '/__network-camera-preset') {
+          await handleNetworkCameraPresetRequest(requestUrl, response);
           return;
         }
 
@@ -103,6 +116,8 @@ interface NetworkCameraSource {
   label: string;
   baseUrl: string;
   capturePath?: string;
+  detectionCapturePath?: string;
+  rotationDegrees?: 0 | 90 | 180 | 270;
 }
 
 const defaultNetworkCameraSources: NetworkCameraSource[] = [
@@ -140,7 +155,7 @@ async function handleNetworkCameraCaptureRequest(
   }
 
   try {
-    const captureUrl = networkCameraCaptureUrl(camera);
+    const captureUrl = networkCameraCaptureUrl(camera, requestUrl.searchParams.get('mode'));
     const upstream = await fetch(captureUrl, {
       cache: 'no-store',
       signal: AbortSignal.timeout(NETWORK_CAMERA_CAPTURE_TIMEOUT_MS),
@@ -165,12 +180,46 @@ async function handleNetworkCameraCaptureRequest(
   }
 }
 
-function networkCameraCaptureUrl(camera: NetworkCameraSource): string {
+function networkCameraCaptureUrl(camera: NetworkCameraSource, mode: string | null): string {
   const baseUrl = new URL(camera.baseUrl);
   if (baseUrl.protocol !== 'http:' && baseUrl.protocol !== 'https:') {
     throw new Error(`Unsupported network camera protocol for ${camera.id}.`);
   }
-  return new URL(camera.capturePath || '/capture', baseUrl).toString();
+  const path = mode === 'detection' && camera.detectionCapturePath
+    ? camera.detectionCapturePath
+    : camera.capturePath || '/capture';
+  return new URL(path, baseUrl).toString();
+}
+
+async function handleNetworkCameraPresetRequest(
+  requestUrl: URL,
+  response: import('node:http').ServerResponse,
+): Promise<void> {
+  const cameraId = requestUrl.searchParams.get('id') ?? '';
+  const preset = requestUrl.searchParams.get('name') ?? '';
+  const camera = (await readNetworkCameraSources()).find((source) => source.id === cameraId);
+  if (!camera) {
+    sendText(response, 404, `Unknown network camera: ${cameraId}`);
+    return;
+  }
+  if (!/^[a-z0-9_-]+$/i.test(preset)) {
+    sendText(response, 400, 'Invalid camera preset name.');
+    return;
+  }
+
+  try {
+    const upstream = await fetch(new URL(`/preset?name=${encodeURIComponent(preset)}`, camera.baseUrl).toString(), {
+      cache: 'no-store',
+      signal: AbortSignal.timeout(NETWORK_CAMERA_CAPTURE_TIMEOUT_MS),
+    });
+    const text = await upstream.text();
+    response.statusCode = upstream.status;
+    response.setHeader('Content-Type', upstream.headers.get('content-type') ?? 'application/json');
+    response.setHeader('Cache-Control', 'no-store');
+    response.end(text);
+  } catch (error) {
+    sendText(response, 502, (error as Error).message);
+  }
 }
 
 async function readNetworkCameraSources(): Promise<NetworkCameraSource[]> {
@@ -197,6 +246,8 @@ function parseNetworkCameraSource(value: unknown): NetworkCameraSource {
   const label = String(record.label ?? '').trim();
   const baseUrl = String(record.baseUrl ?? '').trim();
   const capturePath = record.capturePath === undefined ? undefined : String(record.capturePath).trim();
+  const detectionCapturePath = record.detectionCapturePath === undefined ? undefined : String(record.detectionCapturePath).trim();
+  const rotationDegrees = parseNetworkCameraRotation(record.rotationDegrees);
   if (!id || !/^[a-zA-Z0-9_-]+$/.test(id)) {
     throw new Error('Network camera id must be alphanumeric plus dash/underscore.');
   }
@@ -210,7 +261,16 @@ function parseNetworkCameraSource(value: unknown): NetworkCameraSource {
   if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
     throw new Error(`Network camera ${id} must use http or https.`);
   }
-  return { id, label, baseUrl: parsed.toString().replace(/\/$/, ''), capturePath };
+  return { id, label, baseUrl: parsed.toString().replace(/\/$/, ''), capturePath, detectionCapturePath, rotationDegrees };
+}
+
+function parseNetworkCameraRotation(value: unknown): 0 | 90 | 180 | 270 | undefined {
+  if (value === undefined) return undefined;
+  const rotation = Number(value);
+  if (rotation === 0 || rotation === 90 || rotation === 180 || rotation === 270) {
+    return rotation;
+  }
+  throw new Error('Network camera rotationDegrees must be one of 0, 90, 180, or 270.');
 }
 
 async function handleAiGridSeedRequest(
@@ -375,6 +435,51 @@ async function handleOpenCvDetectionRequest(
   }
 }
 
+async function handleOpenCvDetectionUploadRequest(
+  request: import('node:http').IncomingMessage,
+  response: import('node:http').ServerResponse,
+): Promise<void> {
+  if (request.method !== 'POST') {
+    sendText(response, 405, 'Method not allowed.');
+    return;
+  }
+
+  try {
+    const body = await readRequestBody(request, 8_000_000);
+    const payload = JSON.parse(body) as { imageDataUrl?: unknown };
+    if (typeof payload.imageDataUrl !== 'string') {
+      sendText(response, 400, 'Missing imageDataUrl.');
+      return;
+    }
+
+    const image = parseImageDataUrl(payload.imageDataUrl);
+    await mkdir(opencvUploadDir, { recursive: true });
+    const imagePath = resolve(opencvUploadDir, `${randomUUID()}.${image.extension}`);
+    await writeFile(imagePath, image.buffer);
+    const webcamProbe = await runEsp32WebcamLatticeProbe(imagePath);
+    if (isDetectedPayload(webcamProbe) || isFrameQualityRefusalPayload(webcamProbe)) {
+      sendJson(response, 200, webcamProbe);
+      return;
+    }
+    sendJson(response, 200, await runOpenCvDetection(imagePath));
+  } catch (error) {
+    sendText(response, 500, (error as Error).message);
+  }
+}
+
+function parseImageDataUrl(dataUrl: string): { buffer: Buffer; extension: 'jpg' | 'png' } {
+  const match = dataUrl.match(/^data:image\/(jpeg|jpg|png);base64,([A-Za-z0-9+/=]+)$/);
+  if (!match) {
+    throw new Error('imageDataUrl must be a JPEG or PNG data URL.');
+  }
+  const extension = match[1] === 'png' ? 'png' : 'jpg';
+  const buffer = Buffer.from(match[2], 'base64');
+  if (buffer.length > 6_000_000) {
+    throw new Error('Uploaded image is too large for OpenCV detection.');
+  }
+  return { buffer, extension };
+}
+
 function resolveLocalFixturePath(sourceUrl: string): string {
   const decodedPath = decodeURIComponent(sourceUrl).replace(/^\/+/, '');
   const imagePath = resolve(root, decodedPath);
@@ -418,6 +523,46 @@ function runOpenCvDetection(imagePath: string): Promise<unknown> {
       }
     });
   });
+}
+
+function runEsp32WebcamLatticeProbe(imagePath: string): Promise<unknown> {
+  const args = [
+    'run',
+    '--python',
+    '3.12',
+    '--with',
+    'opencv-python-headless',
+    '--with',
+    'pillow',
+    '--with',
+    'numpy',
+    'python',
+    esp32WebcamProbeScriptPath,
+    '--detect-image',
+    imagePath,
+  ];
+
+  return new Promise((resolvePayload) => {
+    execFile('uv', args, { cwd: root, maxBuffer: 10 * 1024 * 1024, timeout: 45_000 }, (_error, stdout) => {
+      try {
+        resolvePayload(JSON.parse(stdout));
+      } catch {
+        resolvePayload({ detected: false, errorMessage: 'ESP32 webcam lattice probe did not return JSON.' });
+      }
+    });
+  });
+}
+
+function isDetectedPayload(value: unknown): boolean {
+  return Boolean(value && typeof value === 'object' && (value as { detected?: unknown }).detected === true);
+}
+
+function isFrameQualityRefusalPayload(value: unknown): boolean {
+  if (!value || typeof value !== 'object') return false;
+  const record = value as { candidateId?: unknown; detected?: unknown; frameQuality?: unknown };
+  return record.candidateId === 'esp32-webcam-lattice-probe-v1'
+    && record.detected === false
+    && (record.frameQuality === 'too-dark' || record.frameQuality === 'low-contrast');
 }
 
 function parseAiGridSeedMode(value: string | null): AiGridSeedModeId {
@@ -1229,14 +1374,17 @@ function findLabelPayload(value: unknown, sourceId: string): Record<string, unkn
   return label && typeof label === 'object' ? label as Record<string, unknown> : null;
 }
 
-function readRequestBody(request: import('node:http').IncomingMessage): Promise<string> {
+function readRequestBody(
+  request: import('node:http').IncomingMessage,
+  maxBytes = 1_000_000,
+): Promise<string> {
   return new Promise((resolveBody, reject) => {
     let body = '';
     request.setEncoding('utf8');
     request.on('data', (chunk) => {
       body += chunk;
-      if (body.length > 1_000_000) {
-        reject(new Error('Fixture label payload is too large.'));
+      if (body.length > maxBytes) {
+        reject(new Error('Request payload is too large.'));
         request.destroy();
       }
     });

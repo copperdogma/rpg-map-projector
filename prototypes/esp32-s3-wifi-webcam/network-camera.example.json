@@ -3,7 +3,9 @@
     {
       "id": "esp32s3",
       "label": "ESP32-S3 Wi-Fi Camera",
-      "baseUrl": "http://rpg-esp32s3-webcam.local"
+      "baseUrl": "http://rpg-esp32s3-webcam.local",
+      "capturePath": "/capture",
+      "detectionCapturePath": "/capture?size=max"
     }
   ]
 }

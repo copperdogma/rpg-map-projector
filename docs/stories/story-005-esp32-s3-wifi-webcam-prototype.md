@@ -69,6 +69,9 @@ Build the smallest isolated utility that can:
 - [x] Add a laptop gateway/workbench ingest path so the ESP32-S3 source appears in the Calibration Projection Spike camera dropdown.
 - [x] Capture and verify an ESP32-S3 frame through the workbench.
 - [x] Record validation evidence and rough image-quality caveats.
+- [x] Add a follow-up high-resolution still-capture path for calibration photos while keeping VGA as the responsive preview/default path.
+- [x] Add follow-up sensor tuning endpoints for low-light calibration stills.
+- [x] Reflash the ESP32-S3 board and verify `/status`, default `/capture`, `/capture?size=max`, `/preset?name=bright-mat`, and `/preset?name=default` on the physical device.
 
 ## Current Evidence
 
@@ -108,6 +111,14 @@ Build the smallest isolated utility that can:
 - After updating ignored `include/secrets.h` and reflashing through native USB/JTAG, the board joined station Wi-Fi at `http://192.168.86.45` and reported `/capture`, `/stream`, and `/status`.
 - `curl http://192.168.86.45/status` returned `{"name":"rpg-esp32s3-webcam","mode":"station","ip":"192.168.86.45","rssi":-36,"psram":true,...}`.
 - Direct `/capture` returns recognizable room/credenza JPEGs. The prototype now uses `FRAMESIZE_VGA` so current frames are 640 x 480 JPEGs around 13-14 KB.
+- Local firmware now exposes sensor PID/name plus default/current/max frame-size metadata through `/status`, and supports high-resolution one-shot stills through `/capture?size=max`, `uxga`, or `qxga` before restoring VGA for preview responsiveness.
+- The flashed board reports sensor PID `0x26`, `OV2640`, PSRAM available, default/current VGA `640 x 480`, and max UXGA `1600 x 1200`.
+- Physical-device validation used the USB/JTAG connection only for flashing; all image captures were fetched over Wi-Fi from `http://192.168.86.45`.
+- Wi-Fi `/capture` returns a VGA JPEG with actual payload dimensions `640 x 480`.
+- Wi-Fi `/capture?size=max` returns an actual UXGA JPEG with payload dimensions `1600 x 1200` after initializing PSRAM frame buffers at UXGA and then downshifting normal preview/capture back to VGA.
+- After the max still capture, `/status` and a follow-up Wi-Fi `/capture` confirmed the camera returned to VGA.
+- Local firmware source now exposes sensor tuning state through `/status`, direct control writes through `/control?var=<name>&value=<number>`, and presets through `/preset?name=bright-mat` and `/preset?name=default`. The bright-mat preset raises exposure/gain/brightness-oriented settings for the current dark projector-mounted proof rig.
+- Physical preset validation over Wi-Fi shows `/preset?name=bright-mat` and `/preset?name=default` both return HTTP 200 with `ok:true`; each reports two optional unsupported controls on this OV2640 path while applying the core quality, brightness, contrast, exposure, gain, white-balance, flip, and lens settings.
 - The first SVGA capture implementation sometimes closed before the full JPEG transferred. The firmware now writes `/capture` in checked TCP chunks and closes the connection after the full response.
 - `prototypes/esp32-s3-wifi-webcam/network-camera.local.json` points the local workbench at `http://192.168.86.45`; the file is gitignored because the board's DHCP address is local-session state.
 - The Vite proxy `/__network-camera-capture?id=esp32s3-direct` returned a 640 x 480 JPEG from the ESP32-S3 camera.
@@ -138,3 +149,6 @@ Build the smallest isolated utility that can:
 - 20260603-0016 - Verified the full Calibration Projection Spike workbench path in Playwright: select ESP32-S3 camera, start 640 x 480 network stream, capture a recognizable board frame, preserve it in the preview, and record session evidence while detection fails safely on the non-grid scene.
 - 20260603-0017 - Verified Wi-Fi-only operation after the board was disconnected from the laptop and powered by a separate USB-C power source. Direct status/capture, Vite proxy capture, and the browser workbench path still succeeded without any USB serial device attached.
 - 20260603-0018 - Validation found that an unlimited direct `/stream` response could monopolize the ESP32 web server. Replaced the root preview with repeated `/capture` requests, capped `/stream` to three chunked diagnostic frames, reflashed, and revalidated power-only operation with no USB serial device attached.
+- 20260603-0019 - Added the high-resolution still-capture follow-up requested after the calibration workflow shifted from live streaming toward occasional mat/grid photos. `/status` now reports sensor PID/name and frame-size metadata; `/capture?size=max` chooses the detected sensor's known maximum still size, while the default capture path stays VGA. `pio run -e freenove_esp32_s3_wroom_jtag` and `pio run` both pass locally; physical flash and endpoint verification are pending until the board is plugged into the native USB/JTAG connector.
+- 20260603-0020 - Added low-light sensor tuning firmware endpoints and workbench integration hooks. `/preset?name=bright-mat` applies a tabletop low-light preset, `/preset?name=default` restores prototype defaults, and `/control` can set individual ESP32 camera sensor parameters. The workbench config now separates VGA preview `capturePath` from high-resolution `detectionCapturePath` so detector stills can use `/capture?size=max` without slowing the live preview.
+- 20260603-0021 - Flashed the native USB/JTAG-connected board on `/dev/cu.usbmodem101` and validated image paths only over Wi-Fi. `/status` reported OV2640 PID `0x26`, default/current VGA, and max UXGA. Initial validation caught that framebuffer metadata could claim UXGA while the JPEG payload remained VGA, so the firmware now parses JPEG dimensions before accepting/reporting a frame. The final flashed build initializes PSRAM frame buffers at UXGA, restores the normal path to VGA, returns a real `1600 x 1200` JPEG from `/capture?size=max`, returns to `640 x 480` afterward, and successfully applies/restores the bright-mat/default presets with only optional control fallbacks.

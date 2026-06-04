@@ -22,15 +22,37 @@ DHCP and may change after rebooting the board or network.
 ## Endpoints
 
 - `/` - simple preview page
-- `/capture` - single JPEG still
+- `/capture` - single VGA JPEG still
+- `/capture?size=max` - highest known still size for the detected sensor
+- `/capture?size=uxga` - 1600 x 1200 still, useful for OV2640 boards
+- `/capture?size=qxga` - 2048 x 1536 still, useful for OV3660 boards
 - `/stream` - short diagnostic MJPEG response
-- `/status` - JSON status
+- `/status` - JSON status with sensor PID/name and default/current/max frame size
+- `/preset?name=bright-mat` - low-light tabletop tuning preset for grid capture
+- `/preset?name=default` - restore the prototype default sensor tuning
+- `/control?var=brightness&value=2` - set one sensor control directly
 
 The firmware prints the camera URLs to serial once networking starts.
 
-The current prototype still size is VGA, 640 x 480. This keeps the single-frame
-path usable from the workbench; SVGA frames were recognizable but slow enough to
-make the prototype feel stalled.
+The default prototype capture size is VGA, 640 x 480. This keeps the preview
+and workbench path usable. For calibration stills that do not need to be live,
+request `size=max` or a named high-resolution frame size and expect a slower
+single response. After a high-resolution still, the firmware restores the camera
+to VGA so the preview remains responsive.
+
+On the current board, `/status` reports an OV2640 sensor with UXGA max stills.
+The firmware initializes PSRAM frame buffers at UXGA, then downshifts the normal
+capture path to VGA. This is required because raising a camera initialized at
+VGA can leave the JPEG payload at 640 x 480 even when framebuffer metadata says
+1600 x 1200. The `/capture` response validates JPEG payload dimensions before
+returning a frame.
+
+The `bright-mat` preset is meant for the current projector-mounted proof rig
+when the ESP32 frame is too dark for passive grid detection. It raises
+brightness, enables secondary exposure, raises auto-exposure level, raises auto
+gain, and lowers JPEG quantization. It is a diagnostic preset, not a final
+image-quality decision. On the current OV2640 path, two optional controls are
+reported as unsupported while the core preset settings still apply.
 
 ## Workbench Camera Config
 
@@ -43,7 +65,10 @@ gitignored because the address is local-session state.
     {
       "id": "esp32s3-direct",
       "label": "ESP32-S3 Wi-Fi Camera",
-      "baseUrl": "http://192.168.86.45"
+      "baseUrl": "http://192.168.86.45",
+      "capturePath": "/capture",
+      "detectionCapturePath": "/capture?size=max",
+      "rotationDegrees": 270
     }
   ]
 }
@@ -51,6 +76,12 @@ gitignored because the address is local-session state.
 
 The local Vite gateway reads that file for `/__network-cameras` and proxies
 still captures through `/__network-camera-capture?id=esp32s3-direct`.
+`capturePath` is used for the live preview canvas. `detectionCapturePath` is
+used only when the workbench captures a calibration/detection still, so the
+preview can stay responsive at VGA while detector input can use `size=max`.
+Use `rotationDegrees` when the board is mounted sideways. Supported values are
+`0`, `90`, `180`, and `270`; the workbench rotates the canvas stream before
+capturing or running detection, leaving the detector code itself unchanged.
 
 ## PlatformIO
 

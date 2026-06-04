@@ -438,6 +438,10 @@ test('controller captures a selected live camera frame for grid detection eviden
 });
 
 test('controller exposes configured network cameras in the selector and captures one as evidence', async ({ page }) => {
+  let captureRequestCount = 0;
+  let detectionCaptureRequestCount = 0;
+  let brightPresetRequestCount = 0;
+  let uploadedGatewaySeed = false;
   await page.route('**/__network-cameras', async (route) => {
     await route.fulfill({
       contentType: 'application/json',
@@ -447,28 +451,109 @@ test('controller exposes configured network cameras in the selector and captures
             id: 'esp32s3-test',
             label: 'ESP32-S3 Wi-Fi Camera',
             baseUrl: 'http://esp32s3.test',
+            capturePath: '/capture',
+            detectionCapturePath: '/capture?size=max',
+            rotationDegrees: 270,
           },
         ],
       }),
     });
   });
   await page.route('**/__network-camera-capture**', async (route) => {
+    captureRequestCount += 1;
+    const url = new URL(route.request().url());
+    const detectionMode = url.searchParams.get('mode') === 'detection';
+    if (detectionMode) detectionCaptureRequestCount += 1;
+    const width = detectionMode ? 1600 : 640;
+    const height = detectionMode ? 1200 : 480;
+    const darkWarmupFrame = detectionMode && detectionCaptureRequestCount === 1;
     await route.fulfill({
       contentType: 'image/svg+xml',
-      body: `
-        <svg xmlns="http://www.w3.org/2000/svg" width="640" height="480" viewBox="0 0 640 480">
-          <rect width="640" height="480" fill="#d8d1c3"/>
-          <rect x="80" y="90" width="480" height="280" fill="#6f7f84"/>
-          <rect x="120" y="150" width="170" height="120" fill="#9e5a3f"/>
-          <rect x="340" y="130" width="150" height="190" fill="#334c66"/>
+      body: darkWarmupFrame ? `
+        <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
+          <rect width="${width}" height="${height}" fill="#050505"/>
+        </svg>
+      ` : `
+        <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
+          <rect width="${width}" height="${height}" fill="#d8d1c3"/>
+          <rect x="${width * 0.125}" y="${height * 0.1875}" width="${width * 0.75}" height="${height * 0.58}" fill="#6f7f84"/>
+          <rect x="${width * 0.1875}" y="${height * 0.3125}" width="${width * 0.265}" height="${height * 0.25}" fill="#9e5a3f"/>
+          <rect x="${width * 0.53}" y="${height * 0.27}" width="${width * 0.234}" height="${height * 0.395}" fill="#334c66"/>
         </svg>
       `,
+    });
+  });
+  await page.route('**/__network-camera-preset**', async (route) => {
+    const url = new URL(route.request().url());
+    if (url.searchParams.get('name') === 'bright-mat') brightPresetRequestCount += 1;
+    await route.fulfill({
+      contentType: 'application/json',
+      body: JSON.stringify({ ok: true, message: 'ok' }),
+    });
+  });
+  await page.route('**/__opencv-detection-upload', async (route) => {
+    const body = route.request().postDataJSON() as { imageDataUrl?: string };
+    uploadedGatewaySeed = Boolean(body.imageDataUrl?.startsWith('data:image/jpeg;base64,'));
+    await route.fulfill({
+      contentType: 'application/json',
+      body: JSON.stringify({
+        detected: true,
+        imageWidth: 480,
+        imageHeight: 640,
+        corners: [
+          { x: 40, y: 80 },
+          { x: 420, y: 70 },
+          { x: 430, y: 540 },
+          { x: 30, y: 550 },
+        ],
+        columns: 6,
+        rows: 8,
+        confidence: 0.35,
+        latticeScore: 0.15,
+        topCandidates: [
+          {
+            score: 3.2,
+            columns: 6,
+            rows: 8,
+            corners: [
+              { x: 40, y: 80 },
+              { x: 420, y: 70 },
+              { x: 430, y: 540 },
+              { x: 30, y: 550 },
+            ],
+            families: [
+              { angleDeg: 3, periodScore: 0.52, lines: 7 },
+              { angleDeg: 88, periodScore: 0.48, lines: 9 },
+            ],
+          },
+          {
+            score: 3.05,
+            columns: 12,
+            rows: 8,
+            corners: [
+              { x: 20, y: 72 },
+              { x: 455, y: 78 },
+              { x: 438, y: 556 },
+              { x: 24, y: 548 },
+            ],
+            families: [
+              { angleDeg: 2, periodScore: 0.5, lines: 13 },
+              { angleDeg: 87, periodScore: 0.47, lines: 9 },
+            ],
+          },
+        ],
+        detectorMessage: 'test gateway candidate',
+      }),
     });
   });
 
   await page.goto('/');
   await expect(page.locator('#camera-device')).toContainText('ESP32-S3 Wi-Fi Camera');
   await page.locator('#camera-device').selectOption('network:esp32s3-test');
+  await expect(page.getByRole('button', { name: 'Boost Low Light' })).toBeEnabled();
+  await page.getByRole('button', { name: 'Boost Low Light' }).click();
+  await expect(page.locator('#camera-control-status')).toContainText('Boost Low Light applied');
+  expect(brightPresetRequestCount).toBe(1);
   await page.getByRole('button', { name: 'Start Camera' }).click();
   await expect(page.getByRole('button', { name: 'Stop Camera' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Capture & Detect Frame' })).toBeEnabled();
@@ -476,6 +561,8 @@ test('controller exposes configured network cameras in the selector and captures
   await page.getByRole('button', { name: 'Capture & Detect Frame' }).click();
   await expect(page.locator('#preview-mode')).toContainText('Captured camera frame');
   await expect(page.locator('#camera-evidence')).toContainText('ESP32-S3 Wi-Fi Camera');
+  await expect(page.locator('#camera-evidence')).toContainText('Rotated 270 deg');
+  await expect(page.locator('#camera-evidence')).toContainText('Frame luma');
 
   const state = await page.evaluate(() => {
     const raw = window.localStorage.getItem('rpg-map-projector:story-001-calibration');
@@ -483,9 +570,42 @@ test('controller exposes configured network cameras in the selector and captures
   });
 
   expect(state?.evidence?.camera?.deviceLabel).toBe('ESP32-S3 Wi-Fi Camera');
-  expect(state?.evidence?.camera?.streamWidth).toBe(640);
-  expect(state?.evidence?.camera?.streamHeight).toBe(480);
+  expect(state?.evidence?.camera?.streamWidth).toBe(1200);
+  expect(state?.evidence?.camera?.streamHeight).toBe(1600);
   expect(state?.evidence?.camera?.capturedFrameName).toMatch(/^camera-frame-/);
+  expect(state?.evidence?.camera?.frameQuality).toBeTruthy();
+  expect(state?.evidence?.camera?.frameRotationDegrees).toBe(270);
+  expect(captureRequestCount).toBeGreaterThanOrEqual(2);
+  expect(detectionCaptureRequestCount).toBeGreaterThanOrEqual(2);
+
+  await page.getByRole('button', { name: 'Gateway Seed Candidate' }).click();
+  await expect(page.locator('#detection-status')).toContainText('Candidate only; not applied');
+  await expect(page.locator('#detection-status')).toContainText('Gateway OpenCV seed candidate');
+  await expect(page.getByRole('button', { name: 'Force Apply Candidate' })).toBeEnabled();
+  await expect(page.getByRole('button', { name: /Candidate 1: 6 x 8/ })).toBeVisible();
+  await expect(page.getByRole('button', { name: /Candidate 2: 12 x 8/ })).toBeVisible();
+  await page.getByRole('button', { name: /Candidate 2: 12 x 8/ }).click();
+  await expect(page.locator('#detection-status')).toContainText('option 2: 12x8');
+  expect(uploadedGatewaySeed).toBe(true);
+
+  const alternateState = await page.evaluate(() => {
+    const raw = window.localStorage.getItem('rpg-map-projector:story-001-calibration');
+    return raw ? JSON.parse(raw) : null;
+  });
+  expect(alternateState?.detectedGrid?.columns).toBe(12);
+  expect(alternateState?.detectedGrid?.rows).toBe(8);
+  expect(alternateState?.projectionAlignment).toBeNull();
+  expect(alternateState?.projectionAlignmentIssue).toContain('Manual correction required');
+
+  await page.getByRole('button', { name: 'Manual Seed Handles' }).click();
+  const manualState = await page.evaluate(() => {
+    const raw = window.localStorage.getItem('rpg-map-projector:story-001-calibration');
+    return raw ? JSON.parse(raw) : null;
+  });
+  expect(manualState?.detectedGrid?.corners?.[0]?.x).toBeCloseTo(216, 1);
+  expect(manualState?.detectedGrid?.corners?.[0]?.y).toBeCloseTo(224, 1);
+  expect(manualState?.detectedGrid?.corners?.[2]?.x).toBeCloseTo(1056, 1);
+  expect(manualState?.detectedGrid?.corners?.[2]?.y).toBeCloseTo(1376, 1);
 });
 
 test('controller blanks projector for clean mat camera capture then restores alignment grid', async ({ page }) => {
@@ -599,6 +719,7 @@ test('controller keeps failed live camera captures available for manual grid see
 
   await expect(page.locator('#preview-mode')).toContainText('Captured camera frame');
   await expect(page.locator('#detection-status')).toContainText('Detection failed');
+  await expect(page.locator('#camera-evidence')).toContainText('Frame luma');
   await expect(page.getByRole('button', { name: 'Manual Seed Handles' })).toBeEnabled();
 
   await page.getByRole('button', { name: 'Manual Seed Handles' }).click();

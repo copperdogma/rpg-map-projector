@@ -27,6 +27,10 @@ export interface CameraEvidence {
   streamHeight: number;
   capturedFrameName: string;
   capturedAt: string;
+  frameMeanLuma?: number;
+  frameContrast?: number;
+  frameQuality?: 'usable' | 'too-dark' | 'low-contrast';
+  frameRotationDegrees?: number;
 }
 
 export interface GridDetectionFamily {

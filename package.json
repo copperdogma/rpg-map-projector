@@ -35,6 +35,7 @@
     "benchmark:ai-family-stripes": "uv run --python 3.12 --with requests --with opencv-python-headless --with pillow --with numpy python scripts/ai-mask-lattice-probe.py --reports-glob 'test-results/ai-grid-experiments-grok-family-stripes-v2/*/report.json' --out-dir test-results/ai-mask-lattice-probe-family-stripes-v2-full",
     "benchmark:ai-family-pair": "uv run --python 3.12 --with requests --with opencv-python-headless --with pillow --with numpy python scripts/ai-family-pair-lattice.py --reports-glob 'test-results/ai-grid-experiments-grok-family-stripes-v2/*/report.json' --out-dir test-results/ai-family-pair-lattice-v1",
     "benchmark:active-fiducial-sim": "uv run --python 3.12 --with opencv-python-headless --with pillow --with numpy python scripts/projected-fiducial-calibration-sim.py",
+    "probe:esp32-webcam": "uv run --python 3.12 --with opencv-python-headless --with pillow --with numpy python scripts/esp32-webcam-lattice-probe.py",
     "build": "tsc && vite build",
     "test": "vitest run",
     "test:e2e": "playwright test",

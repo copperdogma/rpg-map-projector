@@ -193,6 +193,19 @@ label span,
   margin: 0 0 12px;
 }
 
+.network-camera-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: -2px 0 12px;
+}
+
+.network-camera-controls span {
+  color: #5d635b;
+  font-size: 12px;
+}
+
 .projector-mode-controls > span {
   color: #5d635b;
   font-size: 13px;
@@ -303,6 +316,12 @@ label span,
   color: #743516;
 }
 
+.button.selected {
+  background: #24332c;
+  border-color: #24332c;
+  color: #ffffff;
+}
+
 .button:disabled {
   cursor: not-allowed;
   opacity: 0.55;
@@ -373,6 +392,32 @@ textarea {
 .status-warning {
   background: rgba(252, 177, 77, 0.12);
   border-color: rgba(184, 77, 38, 0.2);
+}
+
+.gateway-candidates {
+  margin-top: 10px;
+  padding: 9px 10px;
+  border: 1px solid rgba(38, 43, 36, 0.16);
+  border-radius: 6px;
+  background: rgba(38, 43, 36, 0.05);
+}
+
+.gateway-candidates[hidden] {
+  display: none;
+}
+
+.gateway-candidates-heading {
+  margin-bottom: 8px;
+  color: #334038;
+  font-size: 12px;
+  font-weight: 760;
+  text-transform: uppercase;
+}
+
+.gateway-candidate-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 .nudge-pad {
