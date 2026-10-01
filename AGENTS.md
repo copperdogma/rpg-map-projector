@@ -39,6 +39,7 @@ Read these in order:
 - Keep live projection local-first. Remote storage/auth is expected later for prep and sync, but it is not part of the MVP and must not become required for live play.
 - Start with a gateway-hosted web UI. Native iOS stays deferred until the web workflow proves the value and limitations.
 - Use QR-code pairing as the default discovery idea for the DM device opening the local gateway UI.
+- Use `/loop-review` to review long-running work against user intent; apply or hand off course corrections only within existing authorization.
 - Keep runtime launchers tied to Conductor's local port allocation. Do not add
   UI scouts, codebase scans, or eval harnesses before real evidence warrants
   them.

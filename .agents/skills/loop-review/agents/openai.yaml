@@ -1,0 +1,4 @@
+interface:
+  display_name: "Loop Review"
+  short_description: "Review long-running goals and propose course corrections"
+  default_prompt: "Use $loop-review to assess the main thread against the project goal, investigate possible local minima, and prepare a course correction I can approve."
